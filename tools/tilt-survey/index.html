@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>건물 기울기 조사</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c3f66">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="기울기조사">
+<link rel="manifest" href="../../manifest.json">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../../icons/icon-192.png">
+<style>
+  :root{
+    --bg:#f2f1ee; --surface:#ffffff; --surface-2:#f6f5f2; --border:#e0ddd6;
+    --text:#1d2430; --text-dim:#6b7280; --accent:#1c3f66; --accent-2:#4f9dde;
+    --danger:#c0392b; --shadow:0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --radius:14px; --print-zoom:1;
+    --grade-a:#2e8b57; --grade-b:#3d8fbf; --grade-c:#c9a227; --grade-d:#d9822b; --grade-e:#c0392b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14181f; --surface:#1c222c; --surface-2:#232a35; --border:#2c3542;
+      --text:#e8eaed; --text-dim:#9aa4b2; --accent:#5b9bd8; --accent-2:#4f9dde;
+      --shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14181f; --surface:#1c222c; --surface-2:#232a35; --border:#2c3542;
+    --text:#e8eaed; --text-dim:#9aa4b2; --accent:#5b9bd8; --accent-2:#4f9dde;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",Roboto,sans-serif;
+    min-height:100vh; padding-bottom:calc(40px + env(safe-area-inset-bottom));
+    font-size:15px;
+  }
+  input, select, textarea, button{ font-family:inherit; font-size:inherit; color:inherit; }
+  header{
+    padding:calc(14px + env(safe-area-inset-top)) 16px 12px;
+    display:flex; align-items:center; gap:10px; position:sticky; top:0;
+    background:var(--bg); z-index:20; border-bottom:1px solid var(--border);
+  }
+  header a.home{
+    color:var(--text); text-decoration:none; font-size:1.1rem; border:1px solid var(--border);
+    background:var(--surface); border-radius:10px; width:38px; height:38px; display:flex;
+    align-items:center; justify-content:center; flex-shrink:0;
+  }
+  header h1{font-size:1.05rem; margin:0; flex:1; letter-spacing:-.01em;}
+  #saveStatus{font-size:.72rem; color:var(--text-dim); white-space:nowrap;}
+  .theme-btn{
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:10px; width:38px; height:38px; font-size:1rem; cursor:pointer; flex-shrink:0;
+  }
+  main{padding:0 12px; max-width:1180px; margin:0 auto;}
+  .panel-hidden{display:none !important;}
+
+  /* 현장정보 */
+  .site-info{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:14px; margin:12px 0; box-shadow:var(--shadow);
+  }
+  .field-row{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;}
+  .field{display:flex; flex-direction:column; gap:4px; min-width:0;}
+  .field label{font-size:.72rem; color:var(--text-dim);}
+  .field input, .field select{
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+    border-radius:9px; padding:9px 10px; min-width:0;
+  }
+  .site-info .field.grow{flex:1; min-width:160px;}
+  .photographer-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .chip{
+    display:flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:999px; padding:6px 8px 6px 12px; font-size:.82rem;
+  }
+  .chip button{
+    border:none; background:transparent; color:var(--text-dim); cursor:pointer; font-size:.9rem;
+    width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  }
+  .add-chip-btn{
+    border:1.5px dashed var(--border); background:transparent; color:var(--text-dim);
+    border-radius:999px; padding:6px 14px; font-size:.82rem; cursor:pointer;
+  }
+
+  /* 탭 */
+  nav.tabs{
+    display:flex; gap:6px; position:sticky; top:calc(56px + env(safe-area-inset-top)); z-index:19;
+    background:var(--bg); padding:4px 0 10px;
+  }
+  nav.tabs button{
+    flex:1; border:1px solid var(--border); background:var(--surface); color:var(--text-dim);
+    border-radius:10px; padding:10px 8px; cursor:pointer; font-size:.88rem; font-weight:600;
+  }
+  nav.tabs button.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  /* 건물(동) 섹션 */
+  .building{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    margin-bottom:14px; box-shadow:var(--shadow); overflow:hidden;
+  }
+  .building-head{
+    display:flex; align-items:center; gap:8px; padding:7px 14px; background:var(--surface-2);
+    border-bottom:1px solid var(--border);
+  }
+  .building-head input.bname{
+    flex:1; border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:8px; padding:8px 10px; font-weight:700; min-width:0;
+  }
+  .icon-btn{
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:8px; width:34px; height:34px; cursor:pointer; flex-shrink:0; font-size:.95rem;
+  }
+  .icon-btn.danger{ color:var(--danger); }
+  .building-body{padding:12px 14px;}
+  .building-body.collapsed{display:none;}
+  .scroll-hint{ font-size:.72rem; color:var(--text-dim); margin:0 0 6px; }
+  .fill-toolbar{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 8px; }
+  .fill-toolbar .fill-label{ font-size:.72rem; color:var(--text-dim); margin-right:2px; }
+  .fill-btn{
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+    border-radius:999px; padding:5px 11px; font-size:.74rem; cursor:pointer;
+  }
+  .fill-btn:active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* 스프레드시트형 입력 표 (엑셀 '1.현장조사값' 시트 레이아웃과 동일한 컬럼 구성) */
+  .table-scroll{
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none; -ms-overflow-style:none; /* 하단 가로 스크롤바 숨김(스크롤 자체는 계속 가능) */
+  }
+  .table-scroll::-webkit-scrollbar{ display:none; }
+  table.data-table{ border-collapse:collapse; width:max-content; min-width:100%; font-size:.73rem; }
+  table.data-table th, table.data-table td{
+    border:1px solid var(--border); padding:2px; text-align:center; white-space:nowrap;
+  }
+  table.data-table thead th{ background:var(--surface-2); font-weight:700; font-size:.7rem; line-height:1.3; }
+  table.data-table td input, table.data-table td select{
+    width:100%; border:none; background:transparent; text-align:center; padding:5px 2px; border-radius:4px;
+  }
+  /* 숫자칸의 마우스 증감(스핀) 버튼 제거 - 값은 방향키/F2로만 조작 */
+  table.data-table td input[type=number]{ -moz-appearance:textfield; }
+  table.data-table td input[type=number]::-webkit-inner-spin-button,
+  table.data-table td input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+  table.data-table td input:focus, table.data-table td select:focus{
+    outline:2px solid var(--accent-2); outline-offset:-2px; background:var(--surface);
+  }
+  /* 잠금(선택) 상태: 방향키로 셀 이동, F2를 눌러야 실제 편집(입력 커서) 가능 */
+  table.data-table td input:read-only{ cursor:default; }
+  table.data-table td.calc-cell{ background:var(--surface-2); color:var(--text-dim); font-variant-numeric:tabular-nums; }
+  .col-no{width:38px;} .col-dms{width:34px;} .col-dist{width:60px;}
+  .col-calc{width:66px;} .col-grade{width:36px;} .col-dir{width:32px;}
+  .col-name{width:42px;} .col-photono{width:46px;} .col-label{width:62px;}
+  .col-photo{width:36px;} .col-remark{width:78px;} .col-del{width:50px;}
+  .col-del .row-del-btn{ padding:3px; font-size:.78rem; }
+  .grade-pill{
+    display:inline-block; min-width:22px; font-weight:800; color:#fff; border-radius:6px; padding:2px 5px; font-size:.72rem;
+  }
+  .grade-a{background:var(--grade-a);} .grade-b{background:var(--grade-b);} .grade-c{background:var(--grade-c);}
+  .grade-d{background:var(--grade-d);} .grade-e{background:var(--grade-e);}
+  .grade-none{background:var(--border); color:var(--text-dim);}
+  .row-del-btn{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:.85rem; padding:6px; }
+  .cell-photo-btn{ background:none; border:none; cursor:pointer; font-size:1rem; padding:4px; }
+  .cell-photo-thumb{ width:30px; height:30px; object-fit:cover; border-radius:5px; cursor:pointer; vertical-align:middle; }
+
+  .add-point-row{ margin-top:10px; }
+  .primary-btn{
+    background:var(--accent); color:#fff; border:none; border-radius:10px; padding:11px 16px;
+    cursor:pointer; font-weight:700; font-size:.9rem;
+  }
+  .ghost-btn{
+    background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:10px;
+    padding:11px 16px; cursor:pointer; font-weight:600; font-size:.9rem;
+  }
+  .add-building-row{ margin:16px 0 30px; display:flex; gap:10px; flex-wrap:wrap; }
+  .empty-hint{ color:var(--text-dim); font-size:.85rem; text-align:center; padding:30px 10px; }
+
+  /* 요약 탭 */
+  .summary-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow);
+  }
+  .summary-card h3{margin:0 0 10px; font-size:1rem;}
+  .summary-grid{
+    display:grid; grid-template-columns:repeat(2,1fr); gap:8px 14px; font-size:.83rem; margin-bottom:10px;
+  }
+  @media (min-width:560px){ .summary-grid{grid-template-columns:repeat(3,1fr);} }
+  .summary-grid div b{display:block; font-size:.68rem; color:var(--text-dim); font-weight:600;}
+  .grade-count-row{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
+  .grade-count-row span{
+    font-size:.76rem; border-radius:7px; padding:4px 9px; color:#fff; font-weight:700;
+  }
+  .judgment{font-size:.85rem; line-height:1.6; background:var(--surface-2); border-radius:9px; padding:10px 12px;}
+  .judgment .flag{color:var(--danger); font-weight:600;}
+
+  .print-scale-field{
+    display:flex; align-items:center; gap:6px; font-size:.78rem; color:var(--text-dim);
+  }
+  .print-scale-select{
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:8px; padding:7px 8px; font-size:.82rem;
+  }
+
+  /* 결과표 탭 (인쇄 시 원본 엑셀 '3.조사결과표' 시트와 동일하게 보이도록 구성) */
+  .report-toolbar{display:flex; gap:10px; margin:10px 0 16px; flex-wrap:wrap; align-items:center;}
+  .report-toolbar .hint{font-size:.78rem; color:var(--text-dim);}
+  .report-block{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px; margin-bottom:20px; box-shadow:var(--shadow);
+    font-family:"Malgun Gothic","Segoe UI",sans-serif;
+    display:flex; flex-direction:column;
+  }
+  .report-title{font-weight:800; text-align:center; margin-bottom:10px; font-size:1.05rem;}
+  .report-meta{display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:8px;}
+  /* 표는 남는 세로 공간을 모두 차지하도록(행 높이가 자동으로 늘거나 줄어듦, fitReportRows() 참고),
+     사진 칸은 항상 고정 비율(4:3, 엽22.jpg 기준)을 유지한 채 표 바로 아래에 일정 간격을 두고 이어진다.
+     (참고: 표를 flex:1로 늘려 CSS만으로 채우는 방식은 인쇄 미리보기 화면에서는 되지만, 실제
+     여러 페이지로 나뉘는 인쇄/PDF 출력 단계에서는 flex-grow가 제대로 반영되지 않아 표 아래에
+     빈 칸이 남는 경우가 있어, JS로 남는 높이를 직접 계산해 각 행에 지정하는 방식을 쓴다.) */
+  table.report-table{width:100%; border-collapse:collapse; font-size:.85rem;}
+  table.report-table th, table.report-table td{
+    border:1px solid #333; padding:7px 6px; text-align:center;
+  }
+  table.report-table th{background:var(--surface-2); font-weight:700;}
+  table.report-table td.merged-loc{ vertical-align:middle; }
+  /* 사진 칸: 엑셀 원본은 사진 유무·비율과 무관하게 병합된 셀 범위(고정 크기)만큼만 차지하고,
+     같은 줄에 좌/우 2개가 나란히 들어간다. 그대로 재현하기 위해 화면/인쇄 모두 고정 높이의 틀을
+     만들고, 사진은 object-fit:cover로 그 틀에 꽉 채워 잘라 넣는다(비율이 달라도 칸 크기는 항상 동일). */
+  .overview-box{
+    margin-top:26px; display:flex; gap:10px;
+  }
+  .overview-slot{
+    flex:1; min-width:0; border:1px solid #333; border-radius:0; padding:10px;
+    text-align:center; color:var(--text-dim); font-size:.85rem;
+    display:flex; flex-direction:column;
+  }
+  .overview-caption{ font-size:.85rem; }
+  /* 사진 테두리 크기는 항상 4:3(엽22.jpg 등 실제 사용하는 사진 비율과 동일)로 고정된다.
+     사진의 실제 비율이 다르더라도 object-fit:cover로 이 틀에 맞춰 채워 넣으므로 칸 크기는 늘 동일하다. */
+  .overview-photo-frame{
+    width:100%; aspect-ratio:4/3; margin-top:8px; border-radius:4px; overflow:hidden;
+    background:var(--surface-2); display:flex; align-items:center; justify-content:center;
+  }
+  /* 엑셀 매크로(PlacePicture)는 사진을 칸에 맞춰 자르지 않고, 비율을 유지한 채 칸 안에 여백을
+     두고 가운데 배치한다(LockAspectRatio) - object-fit:cover(자르기)가 아니라 contain(전체 보이기). */
+  .overview-photo-frame img{ width:100%; height:100%; object-fit:contain; display:block; cursor:pointer; }
+  .overview-photo-frame.empty{ color:var(--text-dim); font-size:.78rem; border:1.5px dashed var(--border); }
+  .overview-actions{display:flex; gap:8px; justify-content:center; margin-top:8px;}
+
+  /* 토스트 */
+  .app-toast-stack{
+    position:fixed; left:0; right:0; bottom:calc(16px + env(safe-area-inset-bottom)); z-index:999;
+    display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; padding:0 16px;
+  }
+  .app-toast{
+    background:var(--accent); color:#fff; padding:11px 16px; border-radius:10px; font-size:.85rem;
+    box-shadow:var(--shadow); max-width:420px; display:flex; align-items:center; gap:10px;
+    pointer-events:auto; animation:toast-in .18s ease;
+  }
+  .app-toast.error{ background:var(--danger); }
+  @keyframes toast-in{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  .toast-action{ background:rgba(255,255,255,.2); border:none; color:#fff; border-radius:7px; padding:6px 10px; cursor:pointer; font-size:.8rem; }
+
+  /* 라이트박스 */
+  .lightbox{
+    position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:1000; display:flex;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .lightbox img{max-width:100%; max-height:85%; border-radius:8px;}
+  .lightbox .close-lb{
+    position:absolute; top:calc(16px + env(safe-area-inset-top)); right:16px; background:rgba(255,255,255,.15);
+    border:none; color:#fff; width:40px; height:40px; border-radius:50%; font-size:1.1rem; cursor:pointer;
+  }
+  .lightbox .lb-actions{ position:absolute; bottom:24px; display:flex; gap:10px; }
+  .lightbox .lb-actions button{
+    background:rgba(255,255,255,.15); border:none; color:#fff; border-radius:8px; padding:10px 16px; cursor:pointer;
+  }
+  .lightbox .lb-actions button.danger{ background:var(--danger); }
+
+  .print-toolbar{display:flex; gap:10px; margin:10px 0 16px; flex-wrap:wrap; align-items:center;}
+  .print-toolbar .hint{font-size:.78rem; color:var(--text-dim);}
+  /* 입력/요약 탭의 제목줄: 결과표 탭의 제목(.report-title)·현장명(.report-meta) 스타일을 그대로
+     재사용해 글자 크기·위치를 결과표와 동일하게 맞춘다(화면·인쇄 모두 표시). */
+  .page-title-block{ margin:0 0 10px; }
+
+  /* 인쇄: 세 탭(입력/요약/결과표) 중 인쇄 버튼을 누른 탭만 A4 문서처럼 출력, 나머지는 전부 숨김.
+     어떤 탭을 인쇄할지는 body[data-print-target]에 표시되고, printPanel()이 인쇄 직전에 설정한다. */
+  @media print{
+    header, nav.tabs, .site-info, .no-print, .app-toast-stack, .lightbox{ display:none !important; }
+    html, body{ background:#fff !important; color:#000 !important; padding:0; margin:0; }
+    main{max-width:none; padding:0; margin:0;}
+    #panel-input, #panel-summary, #panel-report{ display:none !important; }
+    body[data-print-target="input"] #panel-input{ display:block !important; }
+    body[data-print-target="summary"] #panel-summary{ display:block !important; }
+    body[data-print-target="report"] #panel-report{ display:block !important; }
+    /* 인쇄 버튼 없이 브라우저 자체 단축키(Ctrl/Cmd+P)로 인쇄한 경우: 현재 열려있는 탭을 기본으로 출력 */
+    body:not([data-print-target]) #panel-input:not(.panel-hidden){ display:block !important; }
+    body:not([data-print-target]) #panel-summary:not(.panel-hidden){ display:block !important; }
+    body:not([data-print-target]) #panel-report:not(.panel-hidden){ display:block !important; }
+    /* 상단 여백을 넉넉히 둬서(책자 제본 등에 필요한 공간) 브라우저 자체 머리말과 안 겹치게 한다.
+       브라우저의 인쇄 머리글/바닥글 표시 여부 자체는 페이지가 아니라 브라우저 인쇄 대화상자의 옵션이라
+       CSS/JS로 강제로 끌 수는 없다 - "자세히"에서 "머리글 및 바닥글" 체크를 꺼주면 완전히 없앨 수 있다.
+       대신 인쇄 직전 document.title을 잠깐 비워 머리말에 찍히는 글자만이라도 줄인다(printPanel 참고). */
+    @page{ size:A4; margin:22mm 12mm 14mm 12mm; }
+    .print-site-header{ display:block !important; font-weight:700; margin-bottom:10px; color:#000 !important; }
+
+    /* 인쇄 크기 조절: 동 하나가 한 페이지를 넘길 때 사용자가 값을 줄이면 실제 인쇄 크기(레이아웃 자체)가
+       줄어들어 한 페이지에 더 많이 들어간다. transform:scale과 달리 zoom은 레이아웃 크기 자체를 바꾸므로
+       페이지 나누기 계산에도 반영된다(크롬·사파리 지원. 파이어폭스는 zoom 미지원이라 100%로 인쇄됨). */
+    .report-block, #panel-input .building, #panel-summary .summary-card{ zoom:var(--print-zoom, 1); }
+
+    /* 결과표 탭: 엑셀 매크로(WriteReportPage)의 고정값을 그대로 재현한다(renderReportPanel의
+       reportRowMetrics 참고). 표 영역(.table-wrap)은 측점 수와 무관하게 항상 127mm로 고정되고
+       (측점이 적으면 표 아래에 테두리 없는 빈 공간이 남고, 많으면 행이 좁아진다), 그 아래
+       사진 칸까지의 간격(.overview-box margin-top)도 80pt(28.2mm)로 고정된다. 그 결과 사진의
+       위치는 측점 수와 상관없이 표 시작점을 기준으로 "항상 같은 자리"에 고정된다. */
+    .report-block{
+      box-shadow:none !important; border:none !important; border-radius:0 !important;
+      padding:0; margin:0 0 0 0; background:#fff !important; min-height:261mm;
+    }
+    .report-block:not(:last-of-type){ page-break-after:always; }
+    .report-title{ color:#000 !important; margin-bottom:6px; }
+    .report-meta{ color:#000 !important; margin-bottom:6px; }
+    .table-wrap{ min-height:127mm; } /* 엑셀 RPT_TABLE_H = 360pt, 측점 수와 무관하게 항상 고정 */
+    table.report-table{ font-size:var(--rpt-font-pt, 10pt) !important; }
+    table.report-table tbody tr{ height:var(--rpt-row-h, 15.9mm) !important; }
+    table.report-table, table.report-table th, table.report-table td{
+      border:1px solid #000 !important; color:#000 !important; padding:5px 6px !important;
+    }
+    table.report-table th{ background:#eee !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .overview-box{ margin-top:28.2mm !important; padding-top:0 !important; flex:0 0 auto; }
+    .overview-slot{ border:1px solid #000 !important; color:#000 !important; padding:6px !important; }
+    .overview-photo-frame{
+      aspect-ratio:4/3 !important; background:#f6f6f6 !important;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+    .overview-photo-frame.empty{ border:1px dashed #999 !important; }
+
+    /* 입력 탭: 인쇄 범위는 "측점번호 ~ 방향"까지만(촬영자·사진번호·라벨·사진·비고·삭제열은 인쇄에서 제외).
+       편집용 버튼/스크롤 안내도 모두 숨기고, 입력칸은 인쇄되는 표 셀처럼 보이게 한다. */
+    #panel-input .scroll-hint,
+    #panel-input .fill-toolbar,
+    #panel-input .add-point-row,
+    #panel-input .add-building-row,
+    #panel-input .icon-btn,
+    #panel-input .row-del-btn,
+    #panel-input .cell-photo-btn,
+    #panel-input table.data-table .col-del,
+    #panel-input table.data-table .col-name,
+    #panel-input table.data-table .col-photono,
+    #panel-input table.data-table .col-label,
+    #panel-input table.data-table .col-photo,
+    #panel-input table.data-table .col-remark{ display:none !important; }
+    #panel-input .table-scroll{ overflow:visible !important; }
+    #panel-input .building{ box-shadow:none !important; border:1px solid #000 !important; border-radius:0 !important; page-break-inside:avoid; margin-bottom:14px; background:#fff !important; }
+    /* 표제목(동 이름 표시줄) 높이를 화면보다 낮게 */
+    #panel-input .building-head{
+      padding:4px 10px !important; background:#eee !important; border-color:#000 !important;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+    #panel-input .building-head input.bname{
+      border:none !important; background:transparent !important; color:#000 !important;
+      font-size:.85rem !important; padding:2px !important;
+    }
+    #panel-input .building-head input.bname::placeholder{
+      color:transparent !important; /* 동 이름을 안 채운 경우 안내문구가 실제 값처럼 인쇄되지 않도록 */
+    }
+    #panel-input table.data-table{ font-size:.72rem !important; }
+    #panel-input table.data-table, #panel-input table.data-table th, #panel-input table.data-table td{
+      border:1px solid #000 !important; color:#000 !important; padding:3px !important;
+    }
+    #panel-input table.data-table thead th{ background:#eee !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #panel-input table.data-table td input, #panel-input table.data-table td select{
+      border:none !important; background:transparent !important; color:#000 !important; appearance:none; -webkit-appearance:none;
+      padding:3px 2px !important;
+    }
+    #panel-input .col-no{ width:42px !important; } #panel-input .col-dms{ width:32px !important; }
+    #panel-input .col-dist{ width:62px !important; } #panel-input .col-calc{ width:72px !important; }
+    #panel-input .col-grade{ width:38px !important; } #panel-input .col-dir{ width:34px !important; }
+
+    /* 요약 탭 */
+    #panel-summary .summary-card{
+      box-shadow:none !important; border:1px solid #000 !important; border-radius:0 !important;
+      background:#fff !important; color:#000 !important; page-break-inside:avoid; margin-bottom:14px;
+    }
+    #panel-summary .judgment{ background:#f5f5f5 !important; color:#000 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #panel-summary .judgment .flag{ color:#000 !important; font-weight:800; text-decoration:none; }
+    #panel-summary .grade-count-row span,
+    #panel-summary .grade-a, #panel-summary .grade-b, #panel-summary .grade-c, #panel-summary .grade-d, #panel-summary .grade-e{
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a class="home" href="../../index.html" title="홈으로">←</a>
+  <h1>건물 기울기 조사</h1>
+  <span id="saveStatus"></span>
+  <button class="theme-btn" id="themeBtn" type="button" title="테마 전환">🌗</button>
+</header>
+
+<main>
+  <section class="site-info">
+    <div class="field-row">
+      <div class="field grow">
+        <label for="siteName">현장명</label>
+        <input id="siteName" type="text" placeholder="예: 동두천 지행주공2단지 아파트">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="ghost-btn" id="exportBtn" type="button">내보내기</button>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="ghost-btn" id="importBtn" type="button">가져오기</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none;">
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <label>촬영자 (사진번호 라벨에 사용됨, 예: KIM0011)</label>
+      <div class="photographer-list" id="photographerList"></div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button data-tab="input" class="active" type="button">입력</button>
+    <button data-tab="summary" type="button">요약</button>
+    <button data-tab="report" type="button">결과표</button>
+  </nav>
+
+  <section id="panel-input">
+    <div class="print-toolbar no-print">
+      <button class="primary-btn" id="printInputBtn" type="button">입력값 인쇄 / PDF 저장</button>
+      <label class="print-scale-field">인쇄 크기
+        <select id="printScaleInput" class="print-scale-select"></select>
+      </label>
+      <span class="hint">인쇄 시 편집 버튼은 빠지고 표만 출력돼요. 한 동이 두 페이지로 넘어가면 인쇄 크기를 줄여보세요.</span>
+    </div>
+    <div class="page-title-block">
+      <div class="report-title">&lt; 건물 기울기 조사입력표 &gt;</div>
+      <div class="report-meta"><span id="printSiteHeaderInput"></span></div>
+    </div>
+    <div id="buildingsContainer"></div>
+    <div class="add-building-row">
+      <button class="primary-btn" id="addBuildingBtn" type="button">+ 동(건물) 추가</button>
+    </div>
+  </section>
+
+  <section id="panel-summary" class="panel-hidden">
+    <div class="print-toolbar no-print">
+      <button class="primary-btn" id="printSummaryBtn" type="button">요약 인쇄 / PDF 저장</button>
+      <label class="print-scale-field">인쇄 크기
+        <select id="printScaleSummary" class="print-scale-select"></select>
+      </label>
+    </div>
+    <div class="page-title-block">
+      <div class="report-title">&lt; 건물 기울기 조사요약표 &gt;</div>
+      <div class="report-meta"><span id="printSiteHeaderSummary"></span></div>
+    </div>
+    <div id="summaryContainer"></div>
+  </section>
+
+  <section id="panel-report" class="panel-hidden">
+    <div class="report-toolbar no-print">
+      <button class="primary-btn" id="printBtn" type="button">인쇄 / PDF 저장</button>
+      <label class="print-scale-field">인쇄 크기
+        <select id="printScaleReport" class="print-scale-select"></select>
+      </label>
+      <span class="hint">동 하나가 한 페이지를 넘으면 인쇄 크기를 줄여서 한 페이지에 맞춰보세요. 용지는 엑셀 원본과 동일한 A4 세로입니다.</span>
+    </div>
+    <div id="reportContainer"></div>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   상수 · 유틸
+   ============================================================ */
+const RAD = d => d * Math.PI / 180;
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function numOrNull(v){
+  if(v === '' || v === null || v === undefined) return null;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+function num(v, def){
+  const n = numOrNull(v);
+  return n === null ? def : n;
+}
+function fmtThousand(n){
+  if(n === null || n === undefined || isNaN(n)) return '';
+  return Math.round(n).toLocaleString('ko-KR');
+}
+function pad4(n){
+  n = Math.round(num(n, 0));
+  return String(Math.max(0, n)).padStart(4, '0');
+}
+
+/* ============================================================
+   계산 로직 (원본 엑셀 '1.현장조사값' 시트 수식과 동일)
+   상부높이 = 수평거리 / TAN(상부각도)
+   하부높이 = 수평거리 / TAN(하부각도)
+   측정높이 = 상부높이 - 하부높이
+   변위값   = 수평거리 * TAN(수평각차)
+   수직변위(1/n) = ABS(측정높이 / 변위값)
+   등급: n>=750 a, >=500 b, >=250 c, >=150 d, else e
+   방향: 변위값<0 → 좌, 그 외 → 우
+   입력 탭의 표는 이 계산을 매 입력마다 즉시 반영한다(엑셀 셀 수식과 동일한 체감을 주기 위함).
+   ============================================================ */
+function gradeFromN(n){
+  if(n === null || n === undefined || !isFinite(n)) return null;
+  if(n >= 750) return 'a';
+  if(n >= 500) return 'b';
+  if(n >= 250) return 'c';
+  if(n >= 150) return 'd';
+  return 'e';
+}
+
+function calcPoint(p){
+  const uD = numOrNull(p.upperDeg), uM = num(p.upperMin,0), uS = num(p.upperSec,0);
+  const lD = numOrNull(p.lowerDeg), lM = num(p.lowerMin,0), lS = num(p.lowerSec,0);
+  const dist = num(p.horizDist, 0);
+  const dD = numOrNull(p.diffDeg), dM = num(p.diffMin,0), dS = num(p.diffSec,0);
+
+  let upperHeight = null, lowerHeight = null, measuredHeight = null;
+  let displacement = null, n = null, direction = null, absDisp = null;
+
+  if(uD !== null){ upperHeight = dist / Math.tan(RAD(uD + uM/60 + uS/3600)); }
+  if(lD !== null){ lowerHeight = dist / Math.tan(RAD(lD + lM/60 + lS/3600)); }
+  if(upperHeight !== null && lowerHeight !== null){ measuredHeight = upperHeight - lowerHeight; }
+  if(dD !== null){ displacement = dist * Math.tan(RAD(dD + dM/60 + dS/3600)); }
+  if(measuredHeight !== null && displacement !== null && displacement !== 0 && isFinite(measuredHeight/displacement)){
+    n = Math.abs(measuredHeight / displacement);
+  }
+  if(displacement !== null){ direction = displacement < 0 ? '좌' : '우'; absDisp = Math.abs(displacement); }
+
+  const grade = gradeFromN(n);
+  return Object.assign({}, p, { upperHeight, lowerHeight, measuredHeight, displacement, n, grade, direction, absDisp });
+}
+
+function photoLabelFor(state, p){
+  // 촬영자 칸에 입력한 이니셜(k, c 등)로 시작하는 이름을 "촬영자" 목록(KIM, CHOI 등)에서 찾는다.
+  // 일치하는 이름이 없으면 입력한 글자를 대문자로 그대로 보여준다(등록만 하면 자동 매칭됨).
+  const initial = (p.photographerInitial || '').trim().toLowerCase();
+  if(!initial || p.photoNo === '' || p.photoNo === null || p.photoNo === undefined) return '';
+  const ph = state.photographers.find(x => x.name && x.name.trim().toLowerCase().startsWith(initial));
+  const name = ph ? ph.name.trim() : initial.toUpperCase();
+  return name + pad4(p.photoNo);
+}
+
+/* ============================================================
+   상태 · 저장 (IndexedDB, 실패 시 localStorage 폴백)
+   ============================================================ */
+const DB_NAME = 'tiltSurveyDB', DB_VERSION = 1, STORE = 'kv', STATE_KEY = 'state';
+let dbPromise = null;
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    if(!('indexedDB' in window)){ reject(new Error('no-indexeddb')); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => { req.result.createObjectStore(STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+async function idbGet(key){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const r = tx.objectStore(STORE).get(key);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function idbSet(key, val){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(val, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function defaultState(){
+  return {
+    siteName: '',
+    photographers: [
+      { id: uid(), name: 'KIM' },
+      { id: uid(), name: 'CHOI' },
+    ],
+    buildings: [ makeBuilding('') ],
+  };
+}
+function makeBuilding(name){
+  // 엑셀 원본 결과표는 "건물 기울기 조사 전경" 사진칸이 좌/우 2개(같은 행에 나란히) 들어간다.
+  return { id: uid(), name: name || '', overviewPhotoLeft: null, overviewPhotoRight: null, points: [] };
+}
+function makePoint(state, building){
+  const maxNo = building.points.reduce((m,p)=>Math.max(m, num(p.no,0)), 0);
+  const maxPhotoNo = state.buildings.flatMap(b=>b.points).reduce((m,p)=>Math.max(m, num(p.photoNo,0)), 0);
+  // 실측값은 같은 동 안에서 반복되는 경우가 많아(예: 수평거리·하부 시준각이 동일한 기준점),
+  // 새 측점은 직전 측점 값을 그대로 이어받아 시작한다. 바뀐 값만 고쳐 입력하면 되므로 훨씬 빠르다.
+  const prev = building.points[building.points.length - 1];
+  return {
+    id: uid(), no: maxNo + 1,
+    upperDeg: prev ? prev.upperDeg : '', upperMin: prev ? prev.upperMin : '', upperSec: prev ? prev.upperSec : '',
+    lowerDeg: prev ? prev.lowerDeg : '', lowerMin: prev ? prev.lowerMin : '', lowerSec: prev ? prev.lowerSec : '',
+    horizDist: prev ? prev.horizDist : '',
+    diffDeg: prev ? prev.diffDeg : '', diffMin: prev ? prev.diffMin : '', diffSec: prev ? prev.diffSec : '',
+    photographerInitial: prev ? prev.photographerInitial : (state.photographers[0] ? state.photographers[0].name.charAt(0) : ''),
+    photoNo: maxPhotoNo + 1,
+    photo: null, remark: '',
+  };
+}
+function duplicatePoint(state, building, point){
+  const idx = building.points.findIndex(p => p.id === point.id);
+  const maxNo = building.points.reduce((m,p)=>Math.max(m, num(p.no,0)), 0);
+  const maxPhotoNo = state.buildings.flatMap(b=>b.points).reduce((m,p)=>Math.max(m, num(p.photoNo,0)), 0);
+  const clone = Object.assign({}, point, {
+    id: uid(), no: maxNo + 1, photoNo: maxPhotoNo + 1, photo: null,
+  });
+  building.points.splice(idx + 1, 0, clone);
+}
+function fillFieldsFromFirstRow(building, fields){
+  if(building.points.length < 2) return false;
+  const first = building.points[0];
+  building.points.forEach((p, idx) => {
+    if(idx === 0) return;
+    fields.forEach(f => { p[f] = first[f]; });
+  });
+  return true;
+}
+
+let state = defaultState();
+let saveTimer = null;
+const saveStatusEl = () => document.getElementById('saveStatus');
+
+function scheduleSave(){
+  if(saveStatusEl()) saveStatusEl().textContent = '저장 중…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 500);
+}
+async function doSave(){
+  try{
+    await idbSet(STATE_KEY, state);
+    if(saveStatusEl()) saveStatusEl().textContent = '저장됨 ' + new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+  }catch(e){
+    try{
+      localStorage.setItem('tiltSurvey_fallback', JSON.stringify(state));
+      if(saveStatusEl()) saveStatusEl().textContent = '저장됨(백업 모드)';
+    }catch(e2){
+      showToast('저장에 실패했습니다. 데이터가 너무 크거나 저장 공간이 부족할 수 있어요. "내보내기"로 백업해두세요.', {error:true});
+    }
+  }
+}
+async function loadState(){
+  try{
+    const loaded = await idbGet(STATE_KEY);
+    if(loaded) { state = loaded; return; }
+  }catch(e){}
+  try{
+    const raw = localStorage.getItem('tiltSurvey_fallback');
+    if(raw){ state = JSON.parse(raw); return; }
+  }catch(e){}
+  state = defaultState();
+}
+
+/* ============================================================
+   토스트 (alert() 대체 — iOS PWA standalone에서 alert()가 안 뜨는 문제 회피)
+   ============================================================ */
+let toastStackEl = null;
+function showToast(message, opts){
+  opts = opts || {};
+  if(!toastStackEl){
+    toastStackEl = document.createElement('div');
+    toastStackEl.className = 'app-toast-stack';
+    document.body.appendChild(toastStackEl);
+  }
+  const el = document.createElement('div');
+  el.className = 'app-toast' + (opts.error ? ' error' : '');
+  const textEl = document.createElement('div');
+  textEl.style.flex = '1';
+  textEl.textContent = message;
+  el.appendChild(textEl);
+  const remove = () => { el.remove(); };
+  if(opts.actionLabel && opts.onAction){
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'toast-action'; btn.textContent = opts.actionLabel;
+    btn.addEventListener('click', () => { opts.onAction(); remove(); });
+    el.appendChild(btn);
+  }
+  toastStackEl.appendChild(el);
+  setTimeout(remove, opts.duration || 4200);
+}
+
+/* ============================================================
+   사진 압축 (카메라/갤러리에서 선택한 파일 → 축소된 JPEG dataURL)
+   ============================================================ */
+function compressImageFile(file, maxDim, quality){
+  maxDim = maxDim || 1600; quality = quality || 0.82;
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('image-decode-failed'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('file-read-failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ============================================================
+   요약 계산 (원본 '2.구분별요약' 시트 로직과 동일)
+   ============================================================ */
+function summarizeBuilding(building){
+  const computed = building.points.map(calcPoint).filter(p => p.n !== null);
+  if(computed.length === 0) return null;
+
+  let minNPoint = computed[0], maxNPoint = computed[0];
+  let maxDisp = computed[0].absDisp, minDisp = computed[0].absDisp;
+  const gradeCounts = { a:0, b:0, c:0, d:0, e:0 };
+  computed.forEach(p => {
+    if(p.n < minNPoint.n) minNPoint = p;
+    if(p.n > maxNPoint.n) maxNPoint = p;
+    if(p.absDisp > maxDisp) maxDisp = p.absDisp;
+    if(p.absDisp < minDisp) minDisp = p.absDisp;
+    gradeCounts[p.grade]++;
+  });
+  const flagged = computed.filter(p => p.grade === 'c' || p.grade === 'd' || p.grade === 'e')
+    .sort((a,b) => num(a.no,0) - num(b.no,0));
+
+  return { computed, minNPoint, maxNPoint, maxDisp, minDisp, gradeCounts, flagged };
+}
+
+/* ============================================================
+   렌더링
+   ============================================================ */
+let activeTab = 'input';
+
+function el(tag, attrs, children){
+  const e = document.createElement(tag);
+  if(attrs) for(const k in attrs){
+    if(k === 'class') e.className = attrs[k];
+    else if(k === 'html') e.innerHTML = attrs[k];
+    else if(k.startsWith('data-')) e.setAttribute(k, attrs[k]);
+    else e[k] = attrs[k];
+  }
+  (children||[]).forEach(c => { if(c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+  return e;
+}
+
+function renderPhotographerList(){
+  const wrap = document.getElementById('photographerList');
+  wrap.innerHTML = '';
+  state.photographers.forEach(ph => {
+    const chip = el('span', {class:'chip'});
+    const input = el('input', {value: ph.name, style:'border:none;background:transparent;width:70px;padding:0;'});
+    input.addEventListener('input', () => { ph.name = input.value; scheduleSave(); renderAll(); });
+    chip.appendChild(input);
+    const rm = el('button', {type:'button', title:'삭제'}, ['✕']);
+    rm.addEventListener('click', () => {
+      state.photographers = state.photographers.filter(x => x.id !== ph.id);
+      scheduleSave(); renderAll();
+    });
+    chip.appendChild(rm);
+    wrap.appendChild(chip);
+  });
+  const addBtn = el('button', {type:'button', class:'add-chip-btn'}, ['+ 촬영자 추가']);
+  addBtn.addEventListener('click', () => {
+    state.photographers.push({ id: uid(), name: '이름' + (state.photographers.length+1) });
+    scheduleSave(); renderAll();
+  });
+  wrap.appendChild(addBtn);
+}
+
+/* ---- 입력 탭: 엑셀 '1.현장조사값' 시트와 동일한 열 구성의 스프레드시트형 표 ---- */
+function numCellInput(point, field, cls){
+  return el('input', {
+    type:'number', inputMode:'decimal', value: point[field], readOnly:true,
+    'data-field': field, 'data-point': point.id, class: cls || '',
+  });
+}
+
+function renderDataTableHead(){
+  const thead = el('thead');
+  const row1 = el('tr', {}, [
+    el('th', {rowSpan:2, class:'col-no'}, ['측점\n번호']),
+    el('th', {colSpan:3}, ['상부 시준']),
+    el('th', {colSpan:3}, ['하부 시준']),
+    el('th', {rowSpan:2, class:'col-dist'}, ['수평거리\n(mm)']),
+    el('th', {colSpan:3}, ['상부-하부\n수평각차']),
+    el('th', {rowSpan:2, class:'col-calc'}, ['측정높이\n(mm)']),
+    el('th', {rowSpan:2, class:'col-calc'}, ['변위값\n(mm)']),
+    el('th', {rowSpan:2, class:'col-calc'}, ['수직변위\n(1/n)']),
+    el('th', {rowSpan:2, class:'col-dir'}, ['방향']),
+    el('th', {rowSpan:2, class:'col-grade'}, ['등급']),
+    el('th', {rowSpan:2, class:'col-remark'}, ['비고']),
+    el('th', {rowSpan:2, class:'col-name'}, ['촬영자']),
+    el('th', {rowSpan:2, class:'col-photono'}, ['사진\n번호']),
+    el('th', {rowSpan:2, class:'col-label'}, ['라벨']),
+    el('th', {rowSpan:2, class:'col-photo'}, ['사진']),
+    el('th', {rowSpan:2, class:'col-del'}, ['']),
+  ]);
+  row1.querySelectorAll('th').forEach(th => { th.style.whiteSpace = 'pre-line'; });
+  const row2 = el('tr', {}, [
+    '도','분','초', '도','분','초', '도','분','초',
+  ].map(u => el('th', {}, [u])));
+  thead.appendChild(row1);
+  thead.appendChild(row2);
+  return thead;
+}
+
+function renderPointRow(state, building, point){
+  const c = calcPoint(point);
+  const tr = el('tr', {'data-point-id': point.id});
+
+  tr.appendChild(el('td', {class:'col-no'}, [numCellInput(point, 'no')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'upperDeg')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'upperMin')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'upperSec')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'lowerDeg')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'lowerMin')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'lowerSec')]));
+  tr.appendChild(el('td', {class:'col-dist'}, [numCellInput(point, 'horizDist')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'diffDeg')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'diffMin')]));
+  tr.appendChild(el('td', {class:'col-dms'}, [numCellInput(point, 'diffSec')]));
+
+  tr.appendChild(el('td', {class:'col-calc calc-cell calc-measured'}, [c.measuredHeight!==null?fmtThousand(c.measuredHeight):'-']));
+  tr.appendChild(el('td', {class:'col-calc calc-cell calc-disp'}, [c.displacement!==null?c.displacement.toFixed(2):'-']));
+  tr.appendChild(el('td', {class:'col-calc calc-cell calc-n'}, [c.n!==null?('1/ '+fmtThousand(c.n)):'-']));
+
+  tr.appendChild(el('td', {class:'col-dir calc-cell calc-dir'}, [c.direction||'-']));
+
+  const gradeTd = el('td', {class:'col-grade calc-cell'});
+  gradeTd.appendChild(el('span', {class:'grade-pill ' + (c.grade?'grade-'+c.grade:'grade-none')}, [c.grade?c.grade.toUpperCase():'-']));
+  tr.appendChild(gradeTd);
+
+  const remarkTd = el('td', {class:'col-remark'});
+  remarkTd.appendChild(el('input', {type:'text', value: point.remark || '', readOnly:true, 'data-field':'remark', 'data-point': point.id}));
+  tr.appendChild(remarkTd);
+
+  // 촬영자는 드롭박스 대신 이니셜 한 글자(k, c 등)만 입력한다. 위쪽 "촬영자" 목록에 등록된
+  // 이름(KIM, CHOI 등) 중 이 이니셜로 시작하는 이름을 찾아 사진번호 라벨을 자동으로 만든다.
+  const phTd = el('td', {class:'col-name'});
+  phTd.appendChild(el('input', {
+    type:'text', maxLength:4, value: point.photographerInitial || '', readOnly:true,
+    'data-field':'photographerInitial', 'data-point': point.id,
+  }));
+  tr.appendChild(phTd);
+
+  tr.appendChild(el('td', {class:'col-photono'}, [numCellInput(point, 'photoNo')]));
+  tr.appendChild(el('td', {class:'col-label calc-cell calc-label'}, [photoLabelFor(state, point) || '-']));
+
+  const photoTd = el('td', {class:'col-photo'});
+  if(point.photo){
+    const thumb = el('img', {class:'cell-photo-thumb', src: point.photo});
+    thumb.addEventListener('click', () => openLightbox(point.photo, () => {
+      point.photo = null; scheduleSave(); renderAll();
+    }));
+    photoTd.appendChild(thumb);
+  }else{
+    const fileInput = el('input', {type:'file', accept:'image/*', capture:'environment', style:'display:none;'});
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      try{
+        point.photo = await compressImageFile(file);
+        scheduleSave(); renderAll();
+      }catch(e){
+        showToast('사진을 불러오지 못했습니다.', {error:true});
+      }
+    });
+    const btn = el('button', {type:'button', class:'cell-photo-btn', title:'사진 촬영/첨부'}, ['📷']);
+    btn.addEventListener('click', () => fileInput.click());
+    photoTd.appendChild(btn);
+    photoTd.appendChild(fileInput);
+  }
+  tr.appendChild(photoTd);
+
+  const delTd = el('td', {class:'col-del'});
+  const dupBtn = el('button', {type:'button', class:'row-del-btn', title:'이 측점 복제(바로 아래에 추가)'}, ['⧉']);
+  dupBtn.addEventListener('click', () => {
+    duplicatePoint(state, building, point);
+    scheduleSave(); renderAll();
+  });
+  delTd.appendChild(dupBtn);
+  const delBtn = el('button', {type:'button', class:'row-del-btn', title:'측점 삭제'}, ['✕']);
+  delBtn.addEventListener('click', () => {
+    if(!confirm('이 측점을 삭제할까요?')) return;
+    building.points = building.points.filter(p => p.id !== point.id);
+    scheduleSave(); renderAll();
+  });
+  delTd.appendChild(delBtn);
+  tr.appendChild(delTd);
+
+  return tr;
+}
+
+/* 같은 동에서 자주 반복되는 값(수평거리·하부 시준각 등 기준점 값)을 1행 값으로 한 번에 채워
+   매 행 다시 입력하지 않도록 돕는 빠른 채우기 도구모음 */
+function renderFillToolbar(building){
+  const bar = el('div', {class:'fill-toolbar no-print'});
+  bar.appendChild(el('span', {class:'fill-label'}, ['빠른 채우기(1행 값을 전체 행에) :']));
+  const options = [
+    ['상부 시준각', ['upperDeg','upperMin','upperSec']],
+    ['하부 시준각', ['lowerDeg','lowerMin','lowerSec']],
+    ['수평거리', ['horizDist']],
+    ['수평각차', ['diffDeg','diffMin','diffSec']],
+    ['촬영자', ['photographerInitial']],
+  ];
+  options.forEach(([label, fields]) => {
+    const btn = el('button', {type:'button', class:'fill-btn'}, [label]);
+    btn.addEventListener('click', () => {
+      const ok = fillFieldsFromFirstRow(building, fields);
+      if(ok){ scheduleSave(); renderAll(); showToast(label + ' 값을 전체 행에 채웠습니다.'); }
+    });
+    bar.appendChild(btn);
+  });
+  return bar;
+}
+
+function renderBuilding(building){
+  const wrap = el('div', {class:'building', 'data-building-id': building.id});
+  const head = el('div', {class:'building-head'});
+  const nameInput = el('input', {class:'bname', type:'text', placeholder:'동 이름 (예: 205동)', value: building.name, 'data-building-name': building.id});
+  head.appendChild(nameInput);
+  const collapseBtn = el('button', {type:'button', class:'icon-btn', title:'접기/펼치기'}, [building._collapsed ? '▸' : '▾']);
+  collapseBtn.addEventListener('click', () => { building._collapsed = !building._collapsed; renderAll(); });
+  head.appendChild(collapseBtn);
+  const delBtn = el('button', {type:'button', class:'icon-btn danger', title:'동 삭제'}, ['🗑']);
+  delBtn.addEventListener('click', () => {
+    if(!confirm(`"${building.name || '이름없음'}" 동 전체를 삭제할까요? 이 동의 측점 데이터가 모두 사라집니다.`)) return;
+    state.buildings = state.buildings.filter(b => b.id !== building.id);
+    scheduleSave(); renderAll();
+  });
+  head.appendChild(delBtn);
+  wrap.appendChild(head);
+
+  const body = el('div', {class:'building-body' + (building._collapsed ? ' collapsed' : '')});
+  if(building.points.length === 0){
+    body.appendChild(el('div', {class:'empty-hint'}, ['측점이 없습니다. 아래 버튼으로 추가하세요.']));
+  }else{
+    body.appendChild(el('div', {class:'scroll-hint'}, ['← 좌우로 스크롤하면 모든 항목을 볼 수 있어요 (엑셀 시트와 동일한 열 구성)']));
+    if(building.points.length >= 2){
+      body.appendChild(renderFillToolbar(building));
+    }
+    const scrollWrap = el('div', {class:'table-scroll'});
+    const table = el('table', {class:'data-table'});
+    table.appendChild(renderDataTableHead());
+    const tbody = el('tbody');
+    building.points.forEach(p => tbody.appendChild(renderPointRow(state, building, p)));
+    table.appendChild(tbody);
+    scrollWrap.appendChild(table);
+    body.appendChild(scrollWrap);
+  }
+  const addPtBtn = el('button', {type:'button', class:'ghost-btn add-point-row'}, ['+ 측점 추가']);
+  addPtBtn.addEventListener('click', () => {
+    building.points.push(makePoint(state, building));
+    scheduleSave(); renderAll();
+  });
+  body.appendChild(addPtBtn);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function renderInputPanel(){
+  const container = document.getElementById('buildingsContainer');
+  container.innerHTML = '';
+  state.buildings.forEach(b => container.appendChild(renderBuilding(b)));
+}
+
+function renderSummaryPanel(){
+  const panel = document.getElementById('summaryContainer');
+  panel.innerHTML = '';
+  let any = false;
+  state.buildings.forEach(building => {
+    const s = summarizeBuilding(building);
+    if(!s) return;
+    any = true;
+    const card = el('div', {class:'summary-card'});
+    card.appendChild(el('h3', {}, ['■ ' + (building.name || '(이름없음)')]));
+
+    const grid = el('div', {class:'summary-grid'});
+    grid.appendChild(el('div', {}, [el('b',{},['측점 수']), document.createTextNode(s.computed.length + ' 개소')]));
+    grid.appendChild(el('div', {}, [el('b',{},['최대 기울기']), document.createTextNode('1/ ' + fmtThousand(s.minNPoint.n))]));
+    grid.appendChild(el('div', {}, [el('b',{},['최소 기울기']), document.createTextNode('1/ ' + fmtThousand(s.maxNPoint.n))]));
+    grid.appendChild(el('div', {}, [el('b',{},['최대 변위(mm)']), document.createTextNode(s.maxDisp.toFixed(2))]));
+    grid.appendChild(el('div', {}, [el('b',{},['최소 변위(mm)']), document.createTextNode(s.minDisp.toFixed(2))]));
+    card.appendChild(grid);
+
+    const gradeRow = el('div', {class:'grade-count-row'});
+    ['a','b','c','d','e'].forEach(g => {
+      gradeRow.appendChild(el('span', {class:'grade-'+g}, [g.toUpperCase()+' : '+s.gradeCounts[g]]));
+    });
+    card.appendChild(gradeRow);
+
+    const judgment = el('div', {class:'judgment'});
+    const j1 = document.createElement('div');
+    j1.textContent = `판정 : 최대 기울기는 ${s.minNPoint.no}번 측점에서 1/${fmtThousand(s.minNPoint.n)}으로 확인되어 ${s.minNPoint.grade}등급 수준으로 확인됨.`;
+    judgment.appendChild(j1);
+    const j2 = document.createElement('div');
+    if(s.flagged.length === 0){
+      j2.textContent = 'c등급 이상 측점 없음';
+    }else{
+      j2.innerHTML = 'c등급 이상 ' + s.flagged.length + '개소 : <span class="flag">' +
+        s.flagged.map(p => `${p.no}(${p.grade})`).join(', ') + '</span>';
+    }
+    judgment.appendChild(j2);
+    card.appendChild(judgment);
+
+    panel.appendChild(card);
+  });
+  if(!any) panel.appendChild(el('div', {class:'empty-hint'}, ['계산 가능한 측점이 없습니다. 입력 탭에서 시준각과 수평거리를 입력해주세요.']));
+}
+
+/* ============================================================
+   결과표 인쇄: 엑셀 원본 매크로(WriteReportPage, Module1)에 있던 고정값을 그대로 가져왔다.
+   - 측점이 8개(RPT_ROWS) 이하면 행 높이는 45pt(≈15.9mm)로 고정, 표 영역 전체 높이는
+     항상 360pt(≈127mm)로 고정된다 - 측점이 적어서 남는 부분은 그냥 빈 공간으로 남는다.
+     그 덕분에 사진 위치가 측점 수와 무관하게 표 아래 "항상 같은 자리"에 고정된다.
+   - 측점이 8개를 넘으면 360pt를 측점 수만큼 나눠 행 높이를 줄인다(엑셀처럼 항상 한 페이지에
+     맞도록 - 우리 쪽은 표시 편의를 위해 최소 글자 크기 아래로는 너무 작아지지 않도록 약간의
+     안전장치만 더했다).
+   - 글자 크기도 엑셀과 동일하게 행 높이에 따라 10 → 9 → 8 → 7pt로 자동으로 줄어든다.
+   ============================================================ */
+const PT_TO_MM = 25.4 / 72;
+const RPT_ROWS = 8;                       // 엑셀 RPT_ROWS
+const RPT_ROW_H_MM = 45 * PT_TO_MM;       // 엑셀 RPT_ROW_H (45pt)
+const RPT_TABLE_H_MM = 360 * PT_TO_MM;    // 엑셀 RPT_TABLE_H (360pt = 8행 x 45pt)
+
+function reportRowMetrics(count){
+  const rowMm = count > RPT_ROWS ? (RPT_TABLE_H_MM / count) : RPT_ROW_H_MM;
+  const rowPt = rowMm / PT_TO_MM;
+  const fontPt = rowPt >= 30 ? 10 : rowPt >= 20 ? 9 : rowPt >= 15 ? 8 : 7;
+  return { rowMm, fontPt };
+}
+
+function renderPhotoSlot(building, field){
+  const wrap = el('div', {class:'overview-slot'});
+  // 사진 칸은 사진 유무·원본 비율과 무관하게 항상 같은 크기(고정 틀)를 유지한다(엑셀 원본과 동일).
+  // 엑셀 매크로는 사진을 칸에 꽉 채워 자르지 않고(LockAspectRatio) 비율을 유지한 채 칸 안에
+  // 맞춰 넣으므로(object-fit:contain), 우리도 동일하게 자르지 않고 그대로 보이게 한다.
+  const frame = el('div', {class:'overview-photo-frame' + (building[field] ? '' : ' empty')});
+  if(building[field]){
+    const img = el('img', {src: building[field]});
+    img.addEventListener('click', () => openLightbox(building[field], () => {
+      building[field] = null; scheduleSave(); renderAll();
+    }));
+    frame.appendChild(img);
+  }else{
+    frame.appendChild(el('span', {}, ['사진 없음']));
+  }
+  wrap.appendChild(frame);
+  // 엑셀 원본은 사진 설명("건물 기울기 조사 전경") 캡션이 사진 칸 "아래"에 붙는다(위가 아님).
+  wrap.appendChild(el('div', {class:'overview-caption'}, ['건물 기울기 조사 전경']));
+
+  const actions = el('div', {class:'overview-actions no-print'});
+  const btn = el('button', {type:'button', class:'ghost-btn'}, [building[field] ? '사진 교체' : '사진 추가']);
+  const fileInput = el('input', {type:'file', accept:'image/*', capture:'environment', style:'display:none;'});
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if(!file) return;
+    try{ building[field] = await compressImageFile(file, 1800, 0.85); scheduleSave(); renderAll(); }
+    catch(e){ showToast('사진을 불러오지 못했습니다.', {error:true}); }
+  });
+  btn.addEventListener('click', () => fileInput.click());
+  actions.appendChild(btn);
+  actions.appendChild(fileInput);
+  wrap.appendChild(actions);
+  return wrap;
+}
+
+function renderReportPanel(){
+  const container = document.getElementById('reportContainer');
+  container.innerHTML = '';
+  let any = false;
+  state.buildings.forEach(building => {
+    const computedPoints = building.points.map(calcPoint);
+    if(computedPoints.length === 0) return;
+    any = true;
+
+    const block = el('div', {class:'report-block'});
+    const metrics = reportRowMetrics(computedPoints.length);
+    block.style.setProperty('--rpt-row-h', metrics.rowMm.toFixed(3) + 'mm');
+    block.style.setProperty('--rpt-font-pt', metrics.fontPt + 'pt');
+    block.appendChild(el('div', {class:'report-title'}, [`< 건물 기울기 조사결과표 - ${building.name || '(이름없음)'} >`]));
+
+    const meta = el('div', {class:'report-meta'});
+    meta.appendChild(el('span', {}, ['현장명 : ' + (state.siteName || '')]));
+    meta.appendChild(el('span', {}, ['단위 : mm']));
+    block.appendChild(meta);
+
+    const table = el('table', {class:'report-table'});
+    const thead = el('thead', {}, [el('tr', {}, [
+      'No.','조 사 위 치','변위방향','변위값','측정높이','수직변위','평가등급','비고',
+    ].map(h => el('th', {}, [h])))]);
+    table.appendChild(thead);
+
+    const tbody = el('tbody');
+    // "조사위치" 열은 엑셀 원본처럼 그 동의 측점 전체에 걸쳐 세로로 병합된 셀 하나로("도면 참조") 표시한다.
+    computedPoints.forEach((p, idx) => {
+      const arrow = p.direction === '좌' ? '←' : (p.direction === '우' ? '→' : '');
+      const cells = [ el('td', {}, [String(idx+1)]) ];
+      if(idx === 0){
+        cells.push(el('td', {rowSpan: computedPoints.length, class:'merged-loc'}, ['도면 참조']));
+      }
+      cells.push(
+        el('td', {}, [arrow]),
+        el('td', {}, [p.displacement !== null ? p.displacement.toFixed(2) : '']),
+        el('td', {}, [p.measuredHeight !== null ? fmtThousand(p.measuredHeight) : '']),
+        el('td', {}, [p.n !== null ? ('1/ ' + fmtThousand(p.n)) : '']),
+        el('td', {}, [p.grade || '']),
+        el('td', {}, [p.remark || '']),
+      );
+      tbody.appendChild(el('tr', {}, cells));
+    });
+    table.appendChild(tbody);
+    const tableWrap = el('div', {class:'table-wrap'});
+    tableWrap.appendChild(table);
+    block.appendChild(tableWrap);
+
+    // 엑셀 원본은 "건물 기울기 조사 전경" 사진칸이 같은 줄에 좌/우 2개 나란히 들어가고, 4:3 비율로
+    // 크기가 고정된다. 표 영역(.table-wrap)의 높이가 측점 수와 무관하게 항상 127mm로 고정되고
+    // 그 아래 간격도 고정값이라(위 reportRowMetrics·CSS 참고), 사진 위치는 표 길이와 상관없이
+    // 항상 같은 자리에 고정된다.
+    const overviewBox = el('div', {class:'overview-box'});
+    overviewBox.appendChild(renderPhotoSlot(building, 'overviewPhotoLeft'));
+    overviewBox.appendChild(renderPhotoSlot(building, 'overviewPhotoRight'));
+    block.appendChild(overviewBox);
+
+    container.appendChild(block);
+  });
+  if(!any) container.appendChild(el('div', {class:'empty-hint'}, ['계산 가능한 측점이 없습니다. 입력 탭에서 데이터를 입력해주세요.']));
+}
+
+function openLightbox(dataUrl, onDelete){
+  const lb = el('div', {class:'lightbox'});
+  const img = el('img', {src: dataUrl});
+  lb.appendChild(img);
+  const closeBtn = el('button', {class:'close-lb', type:'button'}, ['✕']);
+  closeBtn.addEventListener('click', () => lb.remove());
+  lb.appendChild(closeBtn);
+  if(onDelete){
+    const actions = el('div', {class:'lb-actions'});
+    const delBtn = el('button', {type:'button', class:'danger'}, ['사진 삭제']);
+    delBtn.addEventListener('click', () => {
+      if(!confirm('이 사진을 삭제할까요?')) return;
+      lb.remove();
+      onDelete();
+    });
+    actions.appendChild(delBtn);
+    lb.appendChild(actions);
+  }
+  lb.addEventListener('click', (e) => { if(e.target === lb) lb.remove(); });
+  document.body.appendChild(lb);
+}
+
+function updatePrintSiteHeaders(){
+  const text = '현장명 : ' + (state.siteName || '');
+  document.getElementById('printSiteHeaderInput').textContent = text;
+  document.getElementById('printSiteHeaderSummary').textContent = text;
+}
+
+function renderAll(){
+  document.getElementById('siteName').value = state.siteName || '';
+  renderPhotographerList();
+  renderInputPanel();
+  renderSummaryPanel();
+  renderReportPanel();
+  updatePrintSiteHeaders();
+}
+
+/* ============================================================
+   이벤트 위임 (입력 필드 변경 → 상태 갱신 → 해당 행만 재계산)
+   ============================================================ */
+function findPoint(pointId){
+  for(const b of state.buildings){
+    const p = b.points.find(x => x.id === pointId);
+    if(p) return { building: b, point: p };
+  }
+  return null;
+}
+
+function handleFieldChange(t){
+  const pointId = t.getAttribute('data-point');
+  const buildingNameId = t.getAttribute('data-building-name');
+  if(pointId){
+    const found = findPoint(pointId);
+    if(!found) return;
+    const field = t.getAttribute('data-field');
+    found.point[field] = t.value;
+    scheduleSave();
+    updateRowCalculations(found.point);
+  }else if(buildingNameId){
+    const b = state.buildings.find(x => x.id === buildingNameId);
+    if(b){ b.name = t.value; scheduleSave(); }
+  }
+}
+document.getElementById('buildingsContainer').addEventListener('input', (e) => handleFieldChange(e.target));
+document.getElementById('buildingsContainer').addEventListener('change', (e) => {
+  if(e.target.tagName === 'SELECT') handleFieldChange(e.target);
+});
+
+/* ============================================================
+   엑셀처럼: 셀은 기본적으로 "선택" 상태(입력칸이 readonly)이고 방향키로 인접 칸을 이동한다.
+   F2(또는 더블클릭)를 눌러야 그 칸이 실제로 편집 가능해지고, Enter/Tab/포커스 이탈 시 다시
+   선택 상태로 돌아간다. 선택 상태에서 Delete/Backspace를 누르면 그 칸 값이 바로 지워진다.
+   ============================================================ */
+function cellFocusable(cell){ return cell && cell.querySelector('input,select'); }
+function focusAndSelectCell(cell){
+  const f = cellFocusable(cell);
+  if(f){ f.focus(); if(f.select) f.select(); }
+}
+function moveToAdjacentCell(tr, cellIndex, dir){
+  if(dir === 'left' || dir === 'right'){
+    const targetTd = tr.children[dir === 'left' ? cellIndex - 1 : cellIndex + 1];
+    if(targetTd) focusAndSelectCell(targetTd);
+    return;
+  }
+  const targetTr = dir === 'up' ? tr.previousElementSibling : tr.nextElementSibling;
+  if(targetTr) focusAndSelectCell(targetTr.children[cellIndex]);
+}
+
+const buildingsContainerEl = document.getElementById('buildingsContainer');
+
+buildingsContainerEl.addEventListener('keydown', (e) => {
+  const target = e.target;
+  const td = target.closest('td');
+  if(!td) return;
+  const tr = td.closest('tr');
+  if(!tr || !tr.parentElement || tr.parentElement.tagName !== 'TBODY') return;
+  const cellIndex = Array.prototype.indexOf.call(tr.children, td);
+  const isInput = target.tagName === 'INPUT';
+  const isLocked = isInput && target.readOnly;
+
+  if(e.key === 'F2'){
+    // F2는 기존 값 끝에 커서를 두고 이어서 고치는 "삽입" 모드로 연다(전체 삭제 아님).
+    // 단, number 타입 input은 setSelectionRange를 지원하지 않으므로 text 타입에서만 위치를 지정한다.
+    if(isInput && target.readOnly){
+      target.readOnly = false; target.focus();
+      if(target.type === 'text'){
+        const len = target.value.length;
+        target.setSelectionRange(len, len);
+      }
+    }
+    e.preventDefault();
+    return;
+  }
+  if(e.key === 'Escape'){
+    if(isInput && !target.readOnly){ target.readOnly = true; e.preventDefault(); }
+    return;
+  }
+  if(e.key === 'Enter'){
+    // 버튼(사진/삭제/복제) 위에서는 Enter의 원래 동작(클릭)을 그대로 둔다.
+    if(target.tagName !== 'INPUT' && target.tagName !== 'SELECT') return;
+    if(isInput) target.readOnly = true; // 값 확정 후 다시 선택 상태로
+    e.preventDefault();
+    const nextTr = tr.nextElementSibling;
+    if(nextTr){ focusAndSelectCell(nextTr.children[cellIndex]); return; }
+    // 표의 마지막 행이면 새 측점을 자동으로 추가하고 그 행의 같은 칸으로 이동
+    const buildingEl = tr.closest('.building');
+    const buildingId = buildingEl && buildingEl.getAttribute('data-building-id');
+    const building = state.buildings.find(b => b.id === buildingId);
+    if(!building) return;
+    building.points.push(makePoint(state, building));
+    scheduleSave();
+    renderAll();
+    requestAnimationFrame(() => {
+      const freshTbody = document.querySelector(`.building[data-building-id="${buildingId}"] table.data-table tbody`);
+      if(!freshTbody) return;
+      const rows = freshTbody.querySelectorAll('tr');
+      const lastRow = rows[rows.length - 1];
+      if(lastRow) focusAndSelectCell(lastRow.children[cellIndex]);
+    });
+    return;
+  }
+  if(e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown'){
+    // 편집 중(F2로 연 상태)에는 방향키가 원래대로 커서를 움직이게 둔다.
+    if(isInput && !target.readOnly) return;
+    e.preventDefault();
+    const dir = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : 'down';
+    moveToAdjacentCell(tr, cellIndex, dir);
+    return;
+  }
+  if((e.key === 'Delete' || e.key === 'Backspace') && isLocked){
+    e.preventDefault();
+    target.value = '';
+    target.dispatchEvent(new Event('input', {bubbles:true}));
+    return;
+  }
+  if(isLocked && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey){
+    // 선택 상태에서 바로 타이핑하면 엑셀처럼 기존 값을 지우고 새로 입력한다(덮어쓰기).
+    // preventDefault를 하지 않아야 이 키 입력 자체가 그대로 값에 들어간다.
+    target.readOnly = false;
+    target.value = '';
+  }
+});
+
+// 더블클릭으로도 편집 모드 진입(F2와 동일한 효과)
+buildingsContainerEl.addEventListener('dblclick', (e) => {
+  const input = e.target.closest('table.data-table td input');
+  if(input && input.readOnly){
+    input.readOnly = false; input.focus();
+    if(input.type === 'text'){
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    }
+  }
+});
+
+// 포커스가 칸을 벗어나면 다시 선택(잠금) 상태로 되돌린다.
+// blur는 버블링하지 않으므로 캡처 단계에서 위임해야 한다.
+buildingsContainerEl.addEventListener('blur', (e) => {
+  const t = e.target;
+  if(t.tagName === 'INPUT' && t.closest('table.data-table') && !t.readOnly){
+    t.readOnly = true;
+  }
+}, true);
+
+function updateRowCalculations(point){
+  const tr = document.querySelector(`tr[data-point-id="${point.id}"]`);
+  if(!tr) return;
+  const c = calcPoint(point);
+  tr.querySelector('.calc-measured').textContent = c.measuredHeight!==null ? fmtThousand(c.measuredHeight) : '-';
+  tr.querySelector('.calc-disp').textContent = c.displacement!==null ? c.displacement.toFixed(2) : '-';
+  tr.querySelector('.calc-n').textContent = c.n!==null ? ('1/ '+fmtThousand(c.n)) : '-';
+  const gradePill = tr.querySelector('.grade-pill');
+  gradePill.className = 'grade-pill ' + (c.grade ? 'grade-'+c.grade : 'grade-none');
+  gradePill.textContent = c.grade ? c.grade.toUpperCase() : '-';
+  tr.querySelector('.calc-dir').textContent = c.direction || '-';
+  tr.querySelector('.calc-label').textContent = photoLabelFor(state, point) || '-';
+}
+
+/* ============================================================
+   탭 전환
+   ============================================================ */
+document.querySelectorAll('nav.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeTab = btn.getAttribute('data-tab');
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('panel-input').classList.toggle('panel-hidden', activeTab !== 'input');
+    document.getElementById('panel-summary').classList.toggle('panel-hidden', activeTab !== 'summary');
+    document.getElementById('panel-report').classList.toggle('panel-hidden', activeTab !== 'report');
+    if(activeTab === 'summary') renderSummaryPanel();
+    if(activeTab === 'report') renderReportPanel();
+  });
+});
+
+/* ============================================================
+   기타 버튼들
+   ============================================================ */
+document.getElementById('siteName').addEventListener('input', (e) => {
+  state.siteName = e.target.value; scheduleSave(); updatePrintSiteHeaders();
+});
+document.getElementById('addBuildingBtn').addEventListener('click', () => {
+  state.buildings.push(makeBuilding(''));
+  scheduleSave(); renderAll();
+});
+const ORIGINAL_TITLE = document.title;
+function printPanel(target){
+  // 인쇄용 CSS가 body[data-print-target]을 보고 해당 탭만 화면에 남기고 나머지는 숨긴다.
+  document.body.setAttribute('data-print-target', target);
+  // 브라우저가 자동으로 넣는 인쇄 머리말/바닥말(제목·URL·페이지 번호) 자체는 인쇄 대화상자의
+  // "머리글 및 바닥글" 옵션이라 페이지에서 완전히 끌 수는 없다(사용자가 인쇄 대화상자에서 꺼야 함).
+  // 대신 제목을 비워서 머리말에 찍히는 글자 수라도 줄인다.
+  document.title = '';
+  window.print();
+}
+
+window.addEventListener('afterprint', () => {
+  document.body.removeAttribute('data-print-target');
+  document.title = ORIGINAL_TITLE;
+});
+document.getElementById('printInputBtn').addEventListener('click', () => printPanel('input'));
+document.getElementById('printSummaryBtn').addEventListener('click', () => printPanel('summary'));
+document.getElementById('printBtn').addEventListener('click', () => printPanel('report'));
+
+/* ============================================================
+   인쇄 크기 (엑셀의 "한 페이지에 맞춤" 배율과 같은 역할).
+   동 하나가 한 페이지를 넘으면 이 값을 줄여서 한 페이지에 담을 수 있도록 사용자가 직접 조절한다.
+   ============================================================ */
+const PRINT_SCALE_KEY = 'sit_print_scale';
+const PRINT_SCALE_OPTIONS = [100, 90, 80, 70, 60, 50];
+const printScaleSelects = ['printScaleInput', 'printScaleSummary', 'printScaleReport']
+  .map(id => document.getElementById(id));
+printScaleSelects.forEach(sel => {
+  PRINT_SCALE_OPTIONS.forEach(v => sel.appendChild(el('option', {value: String(v)}, [v + '%' + (v===100 ? ' (원본)' : '')])));
+});
+function setPrintScale(v){
+  v = String(v);
+  document.documentElement.style.setProperty('--print-zoom', (Number(v)/100));
+  printScaleSelects.forEach(sel => { sel.value = v; });
+  try{ localStorage.setItem(PRINT_SCALE_KEY, v); }catch(e){}
+}
+printScaleSelects.forEach(sel => sel.addEventListener('change', () => setPrintScale(sel.value)));
+(function initPrintScale(){
+  let saved = '100';
+  try{ saved = localStorage.getItem(PRINT_SCALE_KEY) || '100'; }catch(e){}
+  setPrintScale(saved);
+})();
+document.getElementById('exportBtn').addEventListener('click', () => {
+  try{
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeSite = (state.siteName || '기울기조사').replace(/[\\/:*?"<>|]/g, '_');
+    a.href = url; a.download = safeSite + '_백업.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    showToast('백업 파일을 저장했습니다.');
+  }catch(e){
+    showToast('내보내기에 실패했습니다.', {error:true});
+  }
+});
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', () => {
+  const file = document.getElementById('importFile').files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed || !Array.isArray(parsed.buildings)) throw new Error('invalid');
+      if(!confirm('현재 화면의 데이터를 가져온 백업 파일로 덮어씁니다. 계속할까요?')) return;
+      state = parsed;
+      scheduleSave(); renderAll();
+      showToast('백업 파일을 불러왔습니다.');
+    }catch(e){
+      showToast('올바른 백업 파일이 아닙니다.', {error:true});
+    }
+  };
+  reader.readAsText(file);
+});
+
+/* ============================================================
+   테마
+   ============================================================ */
+const THEME_KEY = 'sit_theme';
+function applyTheme(t){
+  if(t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  else document.documentElement.removeAttribute('data-theme');
+}
+(function initTheme(){
+  let saved = null;
+  try{ saved = localStorage.getItem(THEME_KEY); }catch(e){}
+  applyTheme(saved);
+})();
+document.getElementById('themeBtn').addEventListener('click', () => {
+  let cur = null;
+  try{ cur = localStorage.getItem(THEME_KEY); }catch(e){}
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const order = prefersDark ? ['dark','light',null] : ['light','dark',null];
+  const idx = order.indexOf(cur);
+  const next = order[(idx + 1) % order.length];
+  applyTheme(next);
+  try{
+    if(next) localStorage.setItem(THEME_KEY, next);
+    else localStorage.removeItem(THEME_KEY);
+  }catch(e){}
+});
+
+/* ============================================================
+   서비스워커
+   ============================================================ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../../service-worker.js', { scope: '../../' }).catch(()=>{});
+  });
+}
+
+/* ============================================================
+   시작
+   ============================================================ */
+(async function init(){
+  await loadState();
+  if(!state.buildings || state.buildings.length === 0) state.buildings = [makeBuilding('')];
+  if(!state.photographers) state.photographers = [{id:uid(), name:'KIM'}, {id:uid(), name:'CHOI'}];
+  // 이전 버전(사진칸 1개)에서 저장된 데이터를 좌/우 2칸 구조로 이관
+  state.buildings.forEach(b => {
+    if(b.overviewPhoto !== undefined){
+      if(b.overviewPhotoLeft === undefined) b.overviewPhotoLeft = b.overviewPhoto;
+      delete b.overviewPhoto;
+    }
+    if(b.overviewPhotoLeft === undefined) b.overviewPhotoLeft = null;
+    if(b.overviewPhotoRight === undefined) b.overviewPhotoRight = null;
+    // 이전 버전(촬영자 드롭박스, photographerId)에서 저장된 데이터를 이니셜 텍스트 입력으로 이관
+    b.points.forEach(p => {
+      if(p.photographerInitial === undefined){
+        const ph = p.photographerId ? state.photographers.find(x => x.id === p.photographerId) : null;
+        p.photographerInitial = ph ? ph.name.charAt(0) : '';
+      }
+    });
+  });
+  renderAll();
+})();
+
+})();
+</script>
+</body>
+</html>
