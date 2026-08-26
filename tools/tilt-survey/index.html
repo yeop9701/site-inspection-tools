@@ -118,7 +118,6 @@
   .icon-btn.danger{ color:var(--danger); }
   .building-body{padding:12px 14px;}
   .building-body.collapsed{display:none;}
-  .scroll-hint{ font-size:.72rem; color:var(--text-dim); margin:0 0 6px; }
   .fill-toolbar{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 8px; }
   .fill-toolbar .fill-label{ font-size:.72rem; color:var(--text-dim); margin-right:2px; }
   .fill-btn{
@@ -166,7 +165,17 @@
   .cell-photo-btn{ background:none; border:none; cursor:pointer; font-size:1rem; padding:4px; }
   .cell-photo-thumb{ width:30px; height:30px; object-fit:cover; border-radius:5px; cursor:pointer; vertical-align:middle; }
 
-  .add-point-row{ margin-top:10px; }
+  /* 측점 추가 버튼: 측점 수가 늘어나도 위치가 아래로 밀리지 않도록 표 위(건물 헤더 바로 아래)에 고정 배치 */
+  .add-point-row{ margin:0 0 10px; }
+
+  /* 동 바로가기(각 탭 상단 출력 버튼 아래에서 원하는 동으로 바로 스크롤 이동) */
+  .jump-bar{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 16px; }
+  .jump-bar .jump-label{ font-size:.76rem; color:var(--text-dim); margin-right:2px; }
+  .jump-btn{
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+    border-radius:999px; padding:5px 12px; font-size:.78rem; cursor:pointer;
+  }
+  .jump-btn:active{ background:var(--accent); color:#fff; border-color:var(--accent); }
   .primary-btn{
     background:var(--accent); color:#fff; border:none; border-radius:10px; padding:11px 16px;
     cursor:pointer; font-weight:700; font-size:.9rem;
@@ -220,7 +229,7 @@
      (참고: 표를 flex:1로 늘려 CSS만으로 채우는 방식은 인쇄 미리보기 화면에서는 되지만, 실제
      여러 페이지로 나뉘는 인쇄/PDF 출력 단계에서는 flex-grow가 제대로 반영되지 않아 표 아래에
      빈 칸이 남는 경우가 있어, JS로 남는 높이를 직접 계산해 각 행에 지정하는 방식을 쓴다.) */
-  table.report-table{width:100%; border-collapse:collapse; font-size:.85rem;}
+  table.report-table{width:100%; border-collapse:collapse; font-size:.85rem; table-layout:fixed;}
   table.report-table th, table.report-table td{
     border:1px solid #333; padding:7px 6px; text-align:center;
   }
@@ -248,6 +257,7 @@
      두고 가운데 배치한다(LockAspectRatio) - object-fit:cover(자르기)가 아니라 contain(전체 보이기). */
   .overview-photo-frame img{ width:100%; height:100%; object-fit:contain; display:block; cursor:pointer; }
   .overview-photo-frame.empty{ color:var(--text-dim); font-size:.78rem; border:1.5px dashed var(--border); }
+  .overview-photo-frame.empty .no-photo-mark{ font-size:2.4rem; font-weight:700; line-height:1; }
   .overview-actions{display:flex; gap:8px; justify-content:center; margin-top:8px;}
 
   /* 토스트 */
@@ -304,7 +314,8 @@
        브라우저의 인쇄 머리글/바닥글 표시 여부 자체는 페이지가 아니라 브라우저 인쇄 대화상자의 옵션이라
        CSS/JS로 강제로 끌 수는 없다 - "자세히"에서 "머리글 및 바닥글" 체크를 꺼주면 완전히 없앨 수 있다.
        대신 인쇄 직전 document.title을 잠깐 비워 머리말에 찍히는 글자만이라도 줄인다(printPanel 참고). */
-    @page{ size:A4; margin:22mm 12mm 14mm 12mm; }
+    /* 좌우 여백은 기존(12mm)의 1.2배(14.4mm)로 넓힘 */
+    @page{ size:A4; margin:22mm 14.4mm 14mm 14.4mm; }
     .print-site-header{ display:block !important; font-weight:700; margin-bottom:10px; color:#000 !important; }
 
     /* 인쇄 크기 조절: 동 하나가 한 페이지를 넘길 때 사용자가 값을 줄이면 실제 인쇄 크기(레이아웃 자체)가
@@ -331,8 +342,18 @@
       border:1px solid #000 !important; color:#000 !important; padding:5px 6px !important;
     }
     table.report-table th{ background:#eee !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .overview-box{ margin-top:28.2mm !important; padding-top:0 !important; flex:0 0 auto; }
-    .overview-slot{ border:1px solid #000 !important; color:#000 !important; padding:6px !important; }
+    /* 측점이 20개를 넘어가면 표 영역이 127mm를 넘길 수 있어(칸이 최소 글자 크기 아래로는 줄지
+       않으므로) 사진 칸이 표 중간에 걸쳐 잘려 보이는 문제가 있었다. break-inside:avoid로 사진
+       칸 전체를 하나의 덩어리로 취급해, 현재 페이지에 다 안 들어가면 통째로 다음 페이지로
+       넘어가게(중간에 잘리지 않게) 한다. */
+    .overview-box{
+      margin-top:28.2mm !important; padding-top:0 !important; flex:0 0 auto;
+      page-break-inside:avoid; break-inside:avoid;
+    }
+    .overview-slot{
+      border:1px solid #000 !important; color:#000 !important; padding:6px !important;
+      page-break-inside:avoid; break-inside:avoid;
+    }
     .overview-photo-frame{
       aspect-ratio:4/3 !important; background:#f6f6f6 !important;
       -webkit-print-color-adjust:exact; print-color-adjust:exact;
@@ -340,14 +361,14 @@
     .overview-photo-frame.empty{ border:1px dashed #999 !important; }
 
     /* 입력 탭: 인쇄 범위는 "측점번호 ~ 방향"까지만(촬영자·사진번호·라벨·사진·비고·삭제열은 인쇄에서 제외).
-       편집용 버튼/스크롤 안내도 모두 숨기고, 입력칸은 인쇄되는 표 셀처럼 보이게 한다. */
-    #panel-input .scroll-hint,
+       편집용 버튼/안내 문구도 모두 숨기고, 입력칸은 인쇄되는 표 셀처럼 보이게 한다. */
     #panel-input .fill-toolbar,
     #panel-input .add-point-row,
     #panel-input .add-building-row,
     #panel-input .icon-btn,
     #panel-input .row-del-btn,
     #panel-input .cell-photo-btn,
+    #panel-input .jump-bar,
     #panel-input table.data-table .col-del,
     #panel-input table.data-table .col-name,
     #panel-input table.data-table .col-photono,
@@ -355,6 +376,10 @@
     #panel-input table.data-table .col-photo,
     #panel-input table.data-table .col-remark{ display:none !important; }
     #panel-input .table-scroll{ overflow:visible !important; }
+    /* 표 바깥 카드 테두리에 표 크기를 맞춰 이중 테두리처럼 보이던 여백을 없앤다(표제목 우측
+       테두리선까지 표가 꽉 차게 이어지도록). */
+    #panel-input .building-body{ padding:0 !important; }
+    #panel-input table.data-table{ width:100% !important; }
     #panel-input .building{ box-shadow:none !important; border:1px solid #000 !important; border-radius:0 !important; page-break-inside:avoid; margin-bottom:14px; background:#fff !important; }
     /* 표제목(동 이름 표시줄) 높이를 화면보다 낮게 */
     #panel-input .building-head{
@@ -380,6 +405,8 @@
     #panel-input .col-no{ width:42px !important; } #panel-input .col-dms{ width:32px !important; }
     #panel-input .col-dist{ width:62px !important; } #panel-input .col-calc{ width:72px !important; }
     #panel-input .col-grade{ width:38px !important; } #panel-input .col-dir{ width:34px !important; }
+    /* 등급 칸 글자색을 검정색으로(배경색 있는 알약 표시는 유지) */
+    #panel-input .grade-pill{ color:#000 !important; }
 
     /* 요약 탭 */
     #panel-summary .summary-card{
@@ -434,12 +461,12 @@
 
   <section id="panel-input">
     <div class="print-toolbar no-print">
-      <button class="primary-btn" id="printInputBtn" type="button">입력값 인쇄 / PDF 저장</button>
+      <button class="primary-btn" id="printInputBtn" type="button">출력</button>
       <label class="print-scale-field">인쇄 크기
         <select id="printScaleInput" class="print-scale-select"></select>
       </label>
-      <span class="hint">인쇄 시 편집 버튼은 빠지고 표만 출력돼요. 한 동이 두 페이지로 넘어가면 인쇄 크기를 줄여보세요.</span>
     </div>
+    <div id="jumpBarInput" class="no-print"></div>
     <div class="page-title-block">
       <div class="report-title">&lt; 건물 기울기 조사입력표 &gt;</div>
       <div class="report-meta"><span id="printSiteHeaderInput"></span></div>
@@ -452,11 +479,12 @@
 
   <section id="panel-summary" class="panel-hidden">
     <div class="print-toolbar no-print">
-      <button class="primary-btn" id="printSummaryBtn" type="button">요약 인쇄 / PDF 저장</button>
+      <button class="primary-btn" id="printSummaryBtn" type="button">출력</button>
       <label class="print-scale-field">인쇄 크기
         <select id="printScaleSummary" class="print-scale-select"></select>
       </label>
     </div>
+    <div id="jumpBarSummary" class="no-print"></div>
     <div class="page-title-block">
       <div class="report-title">&lt; 건물 기울기 조사요약표 &gt;</div>
       <div class="report-meta"><span id="printSiteHeaderSummary"></span></div>
@@ -466,12 +494,15 @@
 
   <section id="panel-report" class="panel-hidden">
     <div class="report-toolbar no-print">
-      <button class="primary-btn" id="printBtn" type="button">인쇄 / PDF 저장</button>
+      <button class="primary-btn" id="printBtn" type="button">출력</button>
       <label class="print-scale-field">인쇄 크기
         <select id="printScaleReport" class="print-scale-select"></select>
       </label>
-      <span class="hint">동 하나가 한 페이지를 넘으면 인쇄 크기를 줄여서 한 페이지에 맞춰보세요. 용지는 엑셀 원본과 동일한 A4 세로입니다.</span>
+      <button class="ghost-btn" id="bulkPhotoBtn" type="button">폴더에서 사진 일괄 추가</button>
+      <input type="file" id="bulkPhotoFolder" webkitdirectory directory multiple style="display:none;">
+      <span class="hint">입력표의 라벨과 파일명이 같은 사진을 폴더에서 찾아, 동별로 측점 1번부터 순서대로 2장씩 전경 사진 칸에 채워요.</span>
     </div>
+    <div id="jumpBarReport" class="no-print"></div>
     <div id="reportContainer"></div>
   </section>
 </main>
@@ -959,10 +990,17 @@ function renderBuilding(building){
   wrap.appendChild(head);
 
   const body = el('div', {class:'building-body' + (building._collapsed ? ' collapsed' : '')});
+  // 측점 추가 버튼은 표 "위"(건물 헤더 바로 아래)에 고정 배치한다. 표 아래에 두면 측점이
+  // 늘어날 때마다 버튼 위치가 계속 아래로 밀려 내려가 매번 다시 찾아 눌러야 하는 불편이 있었다.
+  const addPtBtn = el('button', {type:'button', class:'ghost-btn add-point-row'}, ['+ 측점 추가']);
+  addPtBtn.addEventListener('click', () => {
+    building.points.push(makePoint(state, building));
+    scheduleSave(); renderAll();
+  });
+  body.appendChild(addPtBtn);
   if(building.points.length === 0){
-    body.appendChild(el('div', {class:'empty-hint'}, ['측점이 없습니다. 아래 버튼으로 추가하세요.']));
+    body.appendChild(el('div', {class:'empty-hint'}, ['측점이 없습니다. 위 버튼으로 추가하세요.']));
   }else{
-    body.appendChild(el('div', {class:'scroll-hint'}, ['← 좌우로 스크롤하면 모든 항목을 볼 수 있어요 (엑셀 시트와 동일한 열 구성)']));
     if(building.points.length >= 2){
       body.appendChild(renderFillToolbar(building));
     }
@@ -975,31 +1013,46 @@ function renderBuilding(building){
     scrollWrap.appendChild(table);
     body.appendChild(scrollWrap);
   }
-  const addPtBtn = el('button', {type:'button', class:'ghost-btn add-point-row'}, ['+ 측점 추가']);
-  addPtBtn.addEventListener('click', () => {
-    building.points.push(makePoint(state, building));
-    scheduleSave(); renderAll();
-  });
-  body.appendChild(addPtBtn);
   wrap.appendChild(body);
   return wrap;
+}
+
+/* 각 탭의 출력 버튼 아래에 "동 바로가기" 칩을 렌더링한다. 눌린 동이 있는 패널 안으로
+   부드럽게 스크롤 이동한다(patients 요소는 각 렌더 함수가 data-building-id로 표시해둔다). */
+function renderJumpBar(barId, panelId, entries){
+  const bar = document.getElementById(barId);
+  if(!bar) return;
+  bar.innerHTML = '';
+  if(entries.length < 2) return; // 동이 하나뿐이면 바로가기가 필요 없다
+  bar.appendChild(el('span', {class:'jump-label'}, ['동 바로가기 :']));
+  entries.forEach(({id, label}) => {
+    const btn = el('button', {type:'button', class:'jump-btn'}, [label]);
+    btn.addEventListener('click', () => {
+      const target = document.querySelector(`#${panelId} [data-building-id="${id}"]`);
+      if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+    bar.appendChild(btn);
+  });
 }
 
 function renderInputPanel(){
   const container = document.getElementById('buildingsContainer');
   container.innerHTML = '';
   state.buildings.forEach(b => container.appendChild(renderBuilding(b)));
+  renderJumpBar('jumpBarInput', 'panel-input', state.buildings.map((b, i) => ({id: b.id, label: b.name || (i+1)+'동'})));
 }
 
 function renderSummaryPanel(){
   const panel = document.getElementById('summaryContainer');
   panel.innerHTML = '';
   let any = false;
-  state.buildings.forEach(building => {
+  const jumpEntries = [];
+  state.buildings.forEach((building, i) => {
     const s = summarizeBuilding(building);
     if(!s) return;
     any = true;
-    const card = el('div', {class:'summary-card'});
+    jumpEntries.push({id: building.id, label: building.name || (i+1)+'동'});
+    const card = el('div', {class:'summary-card', 'data-building-id': building.id});
     card.appendChild(el('h3', {}, ['■ ' + (building.name || '(이름없음)')]));
 
     const grid = el('div', {class:'summary-grid'});
@@ -1033,6 +1086,7 @@ function renderSummaryPanel(){
     panel.appendChild(card);
   });
   if(!any) panel.appendChild(el('div', {class:'empty-hint'}, ['계산 가능한 측점이 없습니다. 입력 탭에서 시준각과 수평거리를 입력해주세요.']));
+  renderJumpBar('jumpBarSummary', 'panel-summary', jumpEntries);
 }
 
 /* ============================================================
@@ -1070,7 +1124,7 @@ function renderPhotoSlot(building, field){
     }));
     frame.appendChild(img);
   }else{
-    frame.appendChild(el('span', {}, ['사진 없음']));
+    frame.appendChild(el('span', {class:'no-photo-mark'}, ['✕']));
   }
   wrap.appendChild(frame);
   // 엑셀 원본은 사진 설명("건물 기울기 조사 전경") 캡션이 사진 칸 "아래"에 붙는다(위가 아님).
@@ -1096,12 +1150,14 @@ function renderReportPanel(){
   const container = document.getElementById('reportContainer');
   container.innerHTML = '';
   let any = false;
-  state.buildings.forEach(building => {
+  const jumpEntries = [];
+  state.buildings.forEach((building, i) => {
     const computedPoints = building.points.map(calcPoint);
     if(computedPoints.length === 0) return;
     any = true;
+    jumpEntries.push({id: building.id, label: building.name || (i+1)+'동'});
 
-    const block = el('div', {class:'report-block'});
+    const block = el('div', {class:'report-block', 'data-building-id': building.id});
     const metrics = reportRowMetrics(computedPoints.length);
     block.style.setProperty('--rpt-row-h', metrics.rowMm.toFixed(3) + 'mm');
     block.style.setProperty('--rpt-font-pt', metrics.fontPt + 'pt');
@@ -1113,6 +1169,14 @@ function renderReportPanel(){
     block.appendChild(meta);
 
     const table = el('table', {class:'report-table'});
+    // 열 너비: No.열은 기존 크기(내용에 맞는 좁은 너비)를 그대로 두고, 나머지 7개 열은 서로
+    // 동일한 너비로 맞춘다(colgroup을 쓰면 조사위치 열의 rowSpan 병합과 무관하게 항상 같은
+    // 열 위치에 같은 너비가 적용된다).
+    const colgroup = el('colgroup', {}, [
+      el('col', {style:'width:6%;'}),
+      ...Array.from({length:7}, () => el('col', {style:'width:' + (94/7).toFixed(4) + '%;'})),
+    ]);
+    table.appendChild(colgroup);
     const thead = el('thead', {}, [el('tr', {}, [
       'No.','조 사 위 치','변위방향','변위값','측정높이','수직변위','평가등급','비고',
     ].map(h => el('th', {}, [h])))]);
@@ -1153,6 +1217,7 @@ function renderReportPanel(){
     container.appendChild(block);
   });
   if(!any) container.appendChild(el('div', {class:'empty-hint'}, ['계산 가능한 측점이 없습니다. 입력 탭에서 데이터를 입력해주세요.']));
+  renderJumpBar('jumpBarReport', 'panel-report', jumpEntries);
 }
 
 function openLightbox(dataUrl, onDelete){
@@ -1235,7 +1300,14 @@ function focusAndSelectCell(cell){
 }
 function moveToAdjacentCell(tr, cellIndex, dir){
   if(dir === 'left' || dir === 'right'){
-    const targetTd = tr.children[dir === 'left' ? cellIndex - 1 : cellIndex + 1];
+    // 측정높이·변위값·수직변위·방향·등급 등 계산 전용 칸(입력칸이 없는 td)은 건너뛰고,
+    // 다음으로 입력 가능한 칸으로 바로 이동한다(예: 수평각차 초 → 비고로 한 번에 이동).
+    const step = dir === 'left' ? -1 : 1;
+    let idx = cellIndex, targetTd;
+    do{
+      idx += step;
+      targetTd = tr.children[idx];
+    }while(targetTd && !cellFocusable(targetTd));
     if(targetTd) focusAndSelectCell(targetTd);
     return;
   }
@@ -1457,6 +1529,51 @@ document.getElementById('importFile').addEventListener('change', () => {
 });
 
 /* ============================================================
+   결과표: 폴더에서 사진 일괄 추가
+   입력표에서 각 측점에 자동 계산되는 "라벨"(예: KIM0011)과 같은 이름의 파일을 선택한 폴더에서
+   찾아, 동마다 측점번호(no) 1번부터 순서대로 살펴보며 라벨이 일치하는 파일을 최대 2개까지만
+   그 동의 좌/우 전경 사진 칸에 채운다. 일치하는 파일이 없는 측점은 건너뛰고, 이미 2장을
+   채운 동은 더 이상 찾지 않는다.
+   ============================================================ */
+document.getElementById('bulkPhotoBtn').addEventListener('click', () => {
+  document.getElementById('bulkPhotoFolder').click();
+});
+document.getElementById('bulkPhotoFolder').addEventListener('change', async () => {
+  const input = document.getElementById('bulkPhotoFolder');
+  const files = Array.from(input.files || []);
+  input.value = '';
+  if(files.length === 0) return;
+  const byLabel = new Map();
+  files.forEach(f => {
+    const base = f.name.replace(/\.[^./\\]+$/, '').trim().toLowerCase();
+    if(base && !byLabel.has(base)) byLabel.set(base, f);
+  });
+  let buildingsMatched = 0, photosMatched = 0;
+  for(const building of state.buildings){
+    const sortedPoints = building.points.slice().sort((a,b) => num(a.no,0) - num(b.no,0));
+    const matched = [];
+    for(const p of sortedPoints){
+      const label = photoLabelFor(state, p);
+      if(!label) continue;
+      const f = byLabel.get(label.trim().toLowerCase());
+      if(f){ matched.push(f); if(matched.length >= 2) break; }
+    }
+    if(matched.length === 0) continue;
+    try{
+      if(matched[0]) building.overviewPhotoLeft = await compressImageFile(matched[0], 1800, 0.85);
+      if(matched[1]) building.overviewPhotoRight = await compressImageFile(matched[1], 1800, 0.85);
+      buildingsMatched++; photosMatched += matched.length;
+    }catch(e){}
+  }
+  scheduleSave(); renderAll();
+  if(buildingsMatched === 0){
+    showToast('일치하는 라벨의 사진을 찾지 못했습니다. 폴더 안 사진 파일명이 입력표의 라벨과 같은지 확인해주세요.', {error:true});
+  }else{
+    showToast(buildingsMatched + '개 동에 전경 사진 ' + photosMatched + '장을 채웠습니다.');
+  }
+});
+
+/* ============================================================
    테마
    ============================================================ */
 const THEME_KEY = 'sit_theme';
@@ -1470,17 +1587,17 @@ function applyTheme(t){
   applyTheme(saved);
 })();
 document.getElementById('themeBtn').addEventListener('click', () => {
-  let cur = null;
-  try{ cur = localStorage.getItem(THEME_KEY); }catch(e){}
+  // 시스템 설정을 그대로 따르는(값 미지정) 상태에서는 현재 화면이 이미 시스템의 다크/라이트
+  // 값과 같아 보이는데, 예전 3단계 순환(dark→light→시스템)에서는 그 상태가 순환의 "마지막
+  // 칸"으로 취급되어 첫 클릭이 같은 값으로 되돌아가 화면이 안 바뀌는 문제가 있었다(반전되려면
+  // 두 번 눌러야 함). 지금 실제로 보이는 밝기를 판정해 반대쪽으로 바로 전환하는 단순 토글로
+  // 바꿔, 클릭 한 번에 항상 눈에 보이는 전환이 일어나게 한다.
+  const explicit = document.documentElement.getAttribute('data-theme');
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const order = prefersDark ? ['dark','light',null] : ['light','dark',null];
-  const idx = order.indexOf(cur);
-  const next = order[(idx + 1) % order.length];
+  const isDarkNow = explicit ? explicit === 'dark' : prefersDark;
+  const next = isDarkNow ? 'light' : 'dark';
   applyTheme(next);
-  try{
-    if(next) localStorage.setItem(THEME_KEY, next);
-    else localStorage.removeItem(THEME_KEY);
-  }catch(e){}
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
 });
 
 /* ============================================================
