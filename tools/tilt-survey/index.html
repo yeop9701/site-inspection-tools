@@ -251,13 +251,23 @@
      사진의 실제 비율이 다르더라도 object-fit:cover로 이 틀에 맞춰 채워 넣으므로 칸 크기는 늘 동일하다. */
   .overview-photo-frame{
     width:100%; aspect-ratio:4/3; margin-top:8px; border-radius:4px; overflow:hidden;
-    background:var(--surface-2); display:flex; align-items:center; justify-content:center;
+    display:flex; align-items:center; justify-content:center;
   }
   /* 엑셀 매크로(PlacePicture)는 사진을 칸에 맞춰 자르지 않고, 비율을 유지한 채 칸 안에 여백을
      두고 가운데 배치한다(LockAspectRatio) - object-fit:cover(자르기)가 아니라 contain(전체 보이기). */
   .overview-photo-frame img{ width:100%; height:100%; object-fit:contain; display:block; cursor:pointer; }
-  .overview-photo-frame.empty{ color:var(--text-dim); font-size:.78rem; border:1.5px dashed var(--border); }
-  .overview-photo-frame.empty .no-photo-mark{ font-size:2.4rem; font-weight:700; line-height:1; }
+  /* 빈 칸임은 대각선 두 줄만으로 충분히 드러난다 - 점선 테두리와 회색 배경까지 겹치면
+     바깥 칸 테두리와 이중으로 보인다. color 는 대각선의 currentColor 로 계속 쓰인다. */
+  .overview-photo-frame.empty{ color:var(--text-dim); }
+  /* 사진이 없는 칸은 네 모서리를 잇는 대각선 두 줄로 "비었음"을 표시한다. 예전의 작은 ✕ 글자는
+     칸(4:3, 인쇄 시 폭 절반)에 비해 너무 작아 눈에 띄지 않았다. preserveAspectRatio="none" 이라
+     칸 비율이 어떻든 선이 정확히 모서리에서 모서리로 이어지고, vector-effect:non-scaling-stroke
+     덕분에 칸이 커지든 작아지든 선 굵기는 늘 같다. */
+  .overview-photo-frame.empty .no-photo-mark{ width:100%; height:100%; display:block; }
+  .overview-photo-frame.empty .no-photo-mark svg{ width:100%; height:100%; display:block; }
+  .overview-photo-frame.empty .no-photo-mark line{
+    stroke:currentColor; stroke-width:1.2; vector-effect:non-scaling-stroke;
+  }
   .overview-actions{display:flex; gap:8px; justify-content:center; margin-top:8px;}
 
   /* 토스트 */
@@ -355,10 +365,11 @@
       page-break-inside:avoid; break-inside:avoid;
     }
     .overview-photo-frame{
-      aspect-ratio:4/3 !important; background:#f6f6f6 !important;
-      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+      aspect-ratio:4/3 !important; background:none !important;
     }
-    .overview-photo-frame.empty{ border:1px dashed #999 !important; }
+    /* 화면의 currentColor(회청색)를 그대로 두면 인쇄에서 지나치게 진하다. 표 괘선보다
+       한 단계 옅은 회색으로 낮춰 사진이 든 칸보다 튀지 않게 한다. */
+    .overview-photo-frame.empty .no-photo-mark line{ stroke:#999 !important; }
 
     /* 입력 탭: 인쇄 범위는 "측점번호 ~ 방향"까지만(촬영자·사진번호·라벨·사진·비고·삭제열은 인쇄에서 제외).
        편집용 버튼/안내 문구도 모두 숨기고, 입력칸은 인쇄되는 표 셀처럼 보이게 한다. */
@@ -1035,11 +1046,20 @@ function renderJumpBar(barId, panelId, entries){
   });
 }
 
+// 입력 탭의 바로가기 칩 목록. 요약·결과표와 달리 측점이 없는 동도 모두 보여준다
+// (아직 아무것도 입력하지 않은 동으로 이동하는 것이 입력 탭에서는 오히려 필요하다).
+function inputJumpEntries(){
+  return state.buildings.map((b, i) => ({id: b.id, label: b.name || (i+1)+'동'}));
+}
+function renderInputJumpBar(){
+  renderJumpBar('jumpBarInput', 'panel-input', inputJumpEntries());
+}
+
 function renderInputPanel(){
   const container = document.getElementById('buildingsContainer');
   container.innerHTML = '';
   state.buildings.forEach(b => container.appendChild(renderBuilding(b)));
-  renderJumpBar('jumpBarInput', 'panel-input', state.buildings.map((b, i) => ({id: b.id, label: b.name || (i+1)+'동'})));
+  renderInputJumpBar();
 }
 
 function renderSummaryPanel(){
@@ -1124,11 +1144,21 @@ function renderPhotoSlot(building, field){
     }));
     frame.appendChild(img);
   }else{
-    frame.appendChild(el('span', {class:'no-photo-mark'}, ['✕']));
+    // 좌상↔우하, 우상↔좌하 두 줄. viewBox 0~100 을 칸 크기에 그대로 늘려 붙이므로(비율 무시)
+    // 선 끝이 칸의 네 모서리와 정확히 만난다.
+    frame.appendChild(el('div', {class:'no-photo-mark', html:
+      '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' +
+        '<line x1="0" y1="0" x2="100" y2="100" />' +
+        '<line x1="100" y1="0" x2="0" y2="100" />' +
+      '</svg>'}));
   }
   wrap.appendChild(frame);
   // 엑셀 원본은 사진 설명("건물 기울기 조사 전경") 캡션이 사진 칸 "아래"에 붙는다(위가 아님).
-  wrap.appendChild(el('div', {class:'overview-caption'}, ['건물 기울기 조사 전경']));
+  // 다만 사진이 없는 칸에는 캡션을 달지 않는다 - 빈 칸 밑에 설명만 남으면 인쇄물에서 사진을
+  // 빠뜨린 것처럼 보인다. 사진을 넣는 순간 캡션도 함께 나타난다.
+  if(building[field]){
+    wrap.appendChild(el('div', {class:'overview-caption'}, ['건물 기울기 조사 전경']));
+  }
 
   const actions = el('div', {class:'overview-actions no-print'});
   const btn = el('button', {type:'button', class:'ghost-btn'}, [building[field] ? '사진 교체' : '사진 추가']);
@@ -1280,7 +1310,14 @@ function handleFieldChange(t){
     updateRowCalculations(found.point);
   }else if(buildingNameId){
     const b = state.buildings.find(x => x.id === buildingNameId);
-    if(b){ b.name = t.value; scheduleSave(); }
+    if(b){
+      b.name = t.value;
+      scheduleSave();
+      // 동 이름을 고치면 「동 바로가기」 칩 글자도 바로 따라와야 한다. 결과표·요약은 탭을 열
+      // 때마다 새로 그려서 저절로 맞지만, 입력 탭은 이미 그려진 채로 계속 머무르므로 여기서
+      // 직접 갱신해 준다. 입력 중인 칸을 건드리면 커서가 튀므로 바로가기 줄만 다시 그린다.
+      renderInputJumpBar();
+    }
   }
 }
 document.getElementById('buildingsContainer').addEventListener('input', (e) => handleFieldChange(e.target));
